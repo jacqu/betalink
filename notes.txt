@@ -1,0 +1,173 @@
+Customize Jetson
+================
+
+* Customize boot args:
+In /boot/extlinux/extlinux.conf
+
+* Add rc.local :
+cat /etc/rc.local 
+#!/bin/bash
+
+# Exit DFU mode on DFU USB devices
+/usr/local/bin/pydfu -x
+exit 0
+
+sudo nano /etc/systemd/system/rc-local.service
+[Unit]
+ Description=/etc/rc.local Compatibility
+ ConditionPathExists=/etc/rc.local
+
+[Service]
+ Type=idle
+ ExecStart=/etc/rc.local start
+ TimeoutSec=0
+ StandardOutput=tty
+
+[Install]
+ WantedBy=multi-user.target
+ 
+sudo chmod +x /etc/rc.local
+
+sudo systemctl enable rc-local
+sudo systemctl start rc-local.service
+sudo systemctl status rc-local.service
+
+Compiling firmware
+==================
+
+Download Betaflight current version source code
+git clone --depth 1 --branch 4.2.9 https://github.com/betaflight/betaflight.git
+Extract archive
+Go into Betaflight dir
+Run "make arm_sdk_install"
+Run "make TARGET=STM32F745"
+Flash the hex file located in obj dir (board_name is stored in config)
+
+Adding betalink opcode
+======================
+In src/main/msp/msp.c add at line 147:
+extern FAST_RAM_ZERO_INIT float   filteredMotorErpm[MAX_SUPPORTED_MOTORS];
+
+In src/main/msp/msp.c add a new case in function mspFcProcessOutCommandWithArg
+near line 2022:
+
+		case MSP_BETALINK:
+		
+				// Set motor throttle
+				for (unsigned i = 0; i < getMotorCount(); i++) {
+					if (sbufBytesRemaining(src) >= sizeof(uint16_t)) {
+						motor_disarmed[i] = motorConvertFromExternal(sbufReadU16(src));
+					}
+				}
+				
+				// Send timestamp in us
+	      sbufWriteU32(dst, micros());
+	      
+				// Send battery data
+				sbufWriteU16(dst, getBatteryVoltage()); // in 0.01V steps
+				sbufWriteU16(dst, (int16_t)constrain(getAmperage(), -0x8000, 0x7FFF)); // send current in 0.01 A steps, range is -320A to 320A
+				sbufWriteU16(dst, (uint16_t)constrain(getMAhDrawn(), 0, 0xFFFF)); // milliamp hours drawn from battery
+	
+				// Send IMU raw data
+				{
+					#if defined(USE_ACC)
+					// Hack scale due to choice of units for sensor data in multiwii
+	
+					uint8_t scale;
+					if (acc.dev.acc_1G > 512 * 4) {
+							scale = 8;
+					} else if (acc.dev.acc_1G > 512 * 2) {
+							scale = 4;
+					} else if (acc.dev.acc_1G >= 512) {
+							scale = 2;
+					} else {
+							scale = 1;
+					}
+				#endif
+	
+					for (int i = 0; i < 3; i++) {
+						#if defined(USE_ACC)
+						sbufWriteU16(dst, lrintf(acc.accADC[i] / scale));
+						#else
+						sbufWriteU16(dst, 0);
+						#endif
+					}
+					for (int i = 0; i < 3; i++) {
+						sbufWriteU16(dst, gyroRateDps(i));
+					}
+					for (int i = 0; i < 3; i++) {
+						#if defined(USE_MAG)
+						sbufWriteU16(dst, lrintf(mag.magADC[i]));
+						#else
+						sbufWriteU16(dst, 0);
+						#endif
+					}
+				}
+				
+				// Send Euler angles
+				sbufWriteU16(dst, attitude.values.roll);
+				sbufWriteU16(dst, attitude.values.pitch);
+				sbufWriteU16(dst, attitude.values.yaw);
+				
+				// Send ESC telemetry
+				for (unsigned i = 0; i < getMotorCount(); i++) {
+					int 			rpm = 0;
+					uint16_t 	invalidPct = 10000; // 100.00%
+		
+					#ifdef USE_DSHOT_TELEMETRY
+					if (motorConfig()->dev.useDshotTelemetry) {
+						rpm = (int)filteredMotorErpm[i] * 100 * 2 / motorConfig()->motorPoleCount; // getDshotTelemetry(i) for non filtered
+						#ifdef USE_DSHOT_TELEMETRY_STATS
+						if (isDshotMotorTelemetryActive(i)) {
+							invalidPct = getDshotTelemetryMotorInvalidPercent(i);
+						}
+						#endif
+					}
+					#endif
+					sbufWriteU32(dst, rpm);
+					sbufWriteU16(dst, invalidPct);
+				}
+	
+				break;
+
+In src/main/flight/rpm_filter.c remove "static" at line 67:
+FAST_RAM_ZERO_INIT float   				filteredMotorErpm[MAX_SUPPORTED_MOTORS];
+
+In src/main/msp/msp_protocol.h add a new opcode at the end of the file:
+#define MSP_BETALINK             207    //in & out message    Betalink transaction opcode
+
+Tune the RPM low pass filter cut frequency to avoid aliasing in CLI:
+set rpm_notch_lpf=150
+save
+
+Adding watchdog code
+====================
+
+In src/main/msp/msp_serial.c line 498, insert following code:
+
+				// Watchdog: stop motor if too long serial inactivity
+				if ( 	millis()-mspPort->lastActivityMs > 
+							( 1000 * BLK_SERIAL_WATCHDOG / serialConfig()->serial_update_rate_hz ) )	{
+					for (unsigned i = 0; i < getMotorCount(); i++) {
+						motor_disarmed[i] = motorConvertFromExternal(PWM_RANGE_MIN);
+					}
+				}
+				
+Line 37:
+#include "flight/mixer.h"
+
+#include "pg/motor.h"
+
+#include "rx/rx.h"
+
+In src/main/msp/msp_serial.h line 31, insert following code:
+#define BLK_SERIAL_WATCHDOG 10			// Number of serial task polling periods
+
+Improving serial latency
+========================
+
+In Betaflight configurator CLI:
+set serial_update_rate_hz=400
+save
+
+Deactiviate all other serial functions than USB MSP, all unused sensors
