@@ -1,36 +1,7 @@
-Customize Jetson
-================
+Compiling betalink
+==================
 
-* Customize boot args:
-In /boot/extlinux/extlinux.conf
-
-* Add rc.local :
-cat /etc/rc.local 
-#!/bin/bash
-
-# Exit DFU mode on DFU USB devices
-/usr/local/bin/pydfu -x
-exit 0
-
-sudo nano /etc/systemd/system/rc-local.service
-[Unit]
- Description=/etc/rc.local Compatibility
- ConditionPathExists=/etc/rc.local
-
-[Service]
- Type=idle
- ExecStart=/etc/rc.local start
- TimeoutSec=0
- StandardOutput=tty
-
-[Install]
- WantedBy=multi-user.target
- 
-sudo chmod +x /etc/rc.local
-
-sudo systemctl enable rc-local
-sudo systemctl start rc-local.service
-sudo systemctl status rc-local.service
+gcc -o betalink -Wall -g -pthread betalink.c
 
 Compiling firmware
 ==================
@@ -136,10 +107,6 @@ FAST_RAM_ZERO_INIT float   				filteredMotorErpm[MAX_SUPPORTED_MOTORS];
 In src/main/msp/msp_protocol.h add a new opcode at the end of the file:
 #define MSP_BETALINK             207    //in & out message    Betalink transaction opcode
 
-Tune the RPM low pass filter cut frequency to avoid aliasing in CLI:
-set rpm_notch_lpf=150
-save
-
 Adding watchdog code
 ====================
 
@@ -163,11 +130,49 @@ Line 37:
 In src/main/msp/msp_serial.h line 31, insert following code:
 #define BLK_SERIAL_WATCHDOG 10			// Number of serial task polling periods
 
-Improving serial latency
-========================
+Advanced tuning
+===============
 
-In Betaflight configurator CLI:
+To change serial task frequency, in Betaflight configurator CLI:
 set serial_update_rate_hz=400
 save
 
+To tune the RPM low pass filter cut frequency to avoid aliasing in CLI:
+set rpm_notch_lpf=150
+save
+
 Deactiviate all other serial functions than USB MSP, all unused sensors
+
+Customize Jetson
+================
+
+* Customize boot args:
+In /boot/extlinux/extlinux.conf
+
+* Add rc.local :
+cat /etc/rc.local 
+#!/bin/bash
+
+# Some instructions
+
+exit 0
+
+sudo nano /etc/systemd/system/rc-local.service
+[Unit]
+ Description=/etc/rc.local Compatibility
+ ConditionPathExists=/etc/rc.local
+
+[Service]
+ Type=idle
+ ExecStart=/etc/rc.local start
+ TimeoutSec=0
+ StandardOutput=tty
+
+[Install]
+ WantedBy=multi-user.target
+ 
+sudo chmod +x /etc/rc.local
+
+sudo systemctl enable rc-local
+sudo systemctl start rc-local.service
+sudo systemctl status rc-local.service
