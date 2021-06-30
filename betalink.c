@@ -1,7 +1,7 @@
 /*
  *	Communication with a betaflight FC using multiwii protocol
  *  JG, June 2021
- *  To compile : gcc -Wall -o betalink  betalink.c
+ *  To compile : gcc -Wall -pthread -o betalink  betalink.c
  */
 
 #include <fcntl.h>
