@@ -178,6 +178,7 @@ sudo systemctl start rc-local.service
 sudo systemctl status rc-local.service
 
 * Exit DFU mode on all STM32 connected devices:
+sudo apt-get install python-usb python3-usb
 Add this code in /etc/rc.local:
 # Exit DFU mode on DFU USB devices
 until ! pydfu -x 2>/dev/null
