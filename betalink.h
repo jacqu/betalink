@@ -65,30 +65,30 @@ typedef struct blk_state_s {
 	int16_t         yaw;
 } blk_state_t;
 
-uint32_t  blk_crc32b( unsigned char *message );
-char      *blk_name_from_serial( uint64_t );
-int       blk_get_fd( uint64_t );
-int       blk_init_port( uint64_t );
-void      blk_release_port( uint64_t );
-int 	    blk_write( uint64_t serial_nb, uint8_t* buf, uint16_t size );
-int 	    blk_read( uint64_t serial_nb, uint8_t* buf, uint16_t max_size );
+uint32_t  blk_crc32b( char *message );
+char      *blk_name_from_serial( uint32_t );
+int       blk_get_fd( uint32_t );
+int       blk_init_port( uint32_t );
+void      blk_release_port( uint32_t );
+int 	    blk_write( uint32_t serial_nb, uint8_t* buf, uint16_t size );
+int 	    blk_read( uint32_t serial_nb, uint8_t* buf, uint16_t max_size );
 
 //
 // 	MSP API
 //
 int msp_encode( int fd_idx, uint16_t code, uint8_t *data, uint16_t data_length );
 int msp_decode( int fd_idx, uint8_t* data, uint16_t size );
-int blk_get_imu( uint64_t serial_nb );
-int blk_enable_motor( uint64_t serial_nb, uint8_t flag );
-int blk_get_motor_telemetry( uint64_t serial_nb );
-int blk_get_motor_throttle( uint64_t serial_nb );
-int blk_set_motor( 	uint64_t serial_nb, uint16_t *throttle );
-int blk_get_battery_state( uint64_t serial_nb );
-int blk_copy_state( uint64_t serial_nb, blk_state_t *state );
-void blk_dump_fc_state( uint64_t serial_nb );
-int blk_detect( uint64_t serial_nb );
-int blk_update( 	uint64_t serial_nb, uint16_t *throttle );
-int blk_update_threaded( 	uint64_t serial_nb, uint16_t *throttle );
+int blk_get_imu( uint32_t serial_nb );
+int blk_enable_motor( uint32_t serial_nb, uint8_t flag );
+int blk_get_motor_telemetry( uint32_t serial_nb );
+int blk_get_motor_throttle( uint32_t serial_nb );
+int blk_set_motor( 	uint32_t serial_nb, uint16_t *throttle );
+int blk_get_battery_state( uint32_t serial_nb );
+int blk_copy_state( uint32_t serial_nb, blk_state_t *state );
+void blk_dump_fc_state( uint32_t serial_nb );
+int blk_detect( uint32_t serial_nb );
+int blk_update( 	uint32_t serial_nb, uint16_t *throttle );
+int blk_update_threaded( 	uint32_t serial_nb, uint16_t *throttle );
 uint8_t msp_crc8_dvb_s2_data( uint8_t *data, uint8_t start, uint8_t end );
 uint8_t msp_crc8_dvb_s2( uint8_t crc, uint8_t ch );
 

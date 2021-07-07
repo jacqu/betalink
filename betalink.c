@@ -35,7 +35,7 @@
 
 // Defines
 
-#define BLK_DEV_SERIALNB  387535773138		// Serial number of the test FC
+#define BLK_DEV_SERIALNB  643986269		    // Serial number of the test FC
 #define BLK_DEV_SERIALLG	16							// Max length of a serial number
 #define BLK_BAUDRATE      B115200        	// Serial baudrate
 #define BLK_READ_TIMEOUT  5              	// Tenth of second
@@ -115,12 +115,7 @@ int                 blk_fd[BLK_MAX_DEVICES] =
                             BLK_ERROR_FD,
                             BLK_ERROR_FD };        				// Serial port file descriptor		
                             
-char                blk_devname[BLK_MAX_DEVICES][PATH_MAX] =
-                          { "",
-                            "",
-                            "",
-                            "",
-                            "" };                   			// Serial port devname used to get fd with open
+uint32_t            blk_devname[BLK_MAX_DEVICES] = { 0 }; // Serial port crc32 number used to get fd with open
                             
 struct termios      blk_oldtio[BLK_MAX_DEVICES];  				// Backup of initial tty configuration
 
@@ -134,7 +129,7 @@ blk_msp_t						blk_msp[BLK_MAX_DEVICES] = 		{ 0 };		// MSP state
 //
 // crc32 helper function
 //
-uint32_t blk_crc32b( unsigned char *message ) {
+uint32_t blk_crc32b( char *message ) {
    int      i, j;
    uint32_t byte, crc, mask;
 
@@ -155,28 +150,25 @@ uint32_t blk_crc32b( unsigned char *message ) {
 //
 //  Get the device name from the device serial number
 //
-char *blk_name_from_serial( uint64_t serial_nb ) {
+char *blk_name_from_serial( uint32_t serial_nb ) {
   DIR           *d;
   struct dirent *dir;
-  char          serial_nb_char[BLK_DEV_SERIALLG];
   static char   portname[PATH_MAX];
-  
-  // Convert serial number into string
-  snprintf( serial_nb_char, BLK_DEV_SERIALLG, "%llu", (unsigned long long)serial_nb );
-  #ifdef BLK_DEBUG
-  fprintf( stderr, "BLK: portname serial=%s\n", serial_nb_char );
-  #endif
+  uint32_t      crc;
   
   // Open directory where serial devices can be found
   d = opendir( BLK_SERIAL_DEV_DIR );
   
   // Look for a device name contining teensy serial number
   if ( d ) {
-    printf( "BLK: list of connected UART devices...\n" );
+    printf( "BLK: scanning of connected UART devices...\n" );
     // Scan each file in the directory
     while ( ( dir = readdir( d ) ) != NULL ) {
-      printf( "  %s: serial number=%d\n", dir->d_name, blk_crc32b( dir->d_name ) );
-      if ( strstr( dir->d_name, serial_nb_char ) )  {
+      if ( ( !strcmp( dir->d_name, "." ) ) || ( !strcmp( dir->d_name, ".." ) ) )
+        continue;
+      crc = blk_crc32b( dir->d_name );
+      printf( "  %s: serial number=%u\n", dir->d_name, crc );
+      if ( crc == serial_nb ) {
       
         // A match is a device name containing the serial number
         snprintf( portname, PATH_MAX, "%s%s", BLK_SERIAL_DEV_DIR, dir->d_name );
@@ -196,16 +188,12 @@ char *blk_name_from_serial( uint64_t serial_nb ) {
 //  specified serial number. 
 //  Returns -1 if no matching fd is found.
 //
-int blk_get_fd( uint64_t serial_nb ) {
+int blk_get_fd( uint32_t serial_nb ) {
   int   i;
-  char  serial_nb_char[BLK_DEV_SERIALLG];
-  
-  // Convert serial number into string
-  snprintf( serial_nb_char, BLK_DEV_SERIALLG, "%llu", (unsigned long long)serial_nb );
-    
+     
   for ( i = 0; i < BLK_MAX_DEVICES; i++ )
     if ( blk_fd[i] != BLK_ERROR_FD )
-        if ( strstr( blk_devname[i], serial_nb_char ) )
+        if ( blk_devname[i] == serial_nb )
           return i;
 
   return BLK_ERROR_FD;
@@ -214,7 +202,7 @@ int blk_get_fd( uint64_t serial_nb ) {
 //
 //  Initialize serial port
 //
-int blk_init_port( uint64_t serial_nb )  {
+int blk_init_port( uint32_t serial_nb )  {
   struct  termios newtio;
   int     check_fd;
   int     fd_idx;
@@ -247,7 +235,7 @@ int blk_init_port( uint64_t serial_nb )  {
   
   // Store the fd and the corresponding devname
   blk_fd[fd_idx] = check_fd;
-  strncpy( blk_devname[fd_idx], portname, PATH_MAX );
+  blk_devname[fd_idx] = serial_nb;
 
   /* Save current port settings */
   tcgetattr( check_fd, &blk_oldtio[fd_idx] );
@@ -296,7 +284,7 @@ int blk_init_port( uint64_t serial_nb )  {
 //
 //  Release serial port
 //
-void blk_release_port( uint64_t serial_nb )  {
+void blk_release_port( uint32_t serial_nb )  {
   int   fd_idx;
   
   // Get fd index from serial number
@@ -313,7 +301,7 @@ void blk_release_port( uint64_t serial_nb )  {
     
     // Clear fd and corresponding devname
     blk_fd[fd_idx] = BLK_ERROR_FD;
-    strncpy( blk_devname[fd_idx], "", PATH_MAX );
+    blk_devname[fd_idx] = 0;
     
     // Destroy update mutex
     if ( pthread_mutex_destroy( &blk_state[fd_idx].update_mutex ) )	{
@@ -332,7 +320,7 @@ void blk_release_port( uint64_t serial_nb )  {
 //
 // serial write
 //
-int blk_write( uint64_t serial_nb, uint8_t* buf, uint16_t size ) {
+int blk_write( uint32_t serial_nb, uint8_t* buf, uint16_t size ) {
 	int res = 0, fd_idx;
 	
 	// Get fd index
@@ -358,7 +346,7 @@ int blk_write( uint64_t serial_nb, uint8_t* buf, uint16_t size ) {
 //
 // serial read
 //
-int blk_read( uint64_t serial_nb, uint8_t* buf, uint16_t max_size ) {
+int blk_read( uint32_t serial_nb, uint8_t* buf, uint16_t max_size ) {
 	int                 ret, res = 0, fd_idx;
   uint8_t             data_in;
   uint16_t						size = max_size;
@@ -459,7 +447,7 @@ int blk_read( uint64_t serial_nb, uint8_t* buf, uint16_t max_size ) {
 //
 // Get motor telemetry data
 //
-int blk_get_motor_telemetry( 	uint64_t serial_nb ) {
+int blk_get_motor_telemetry( 	uint32_t serial_nb ) {
 	uint8_t buf[MSP_PROTOCOL_MAX_BUF_SZ];
   int 		ret, ret2;
   sbuf_t	sbuf;
@@ -526,7 +514,7 @@ int blk_get_motor_telemetry( 	uint64_t serial_nb ) {
 //
 // Get motor current throttle
 //
-int blk_get_motor_throttle( 	uint64_t serial_nb ) {
+int blk_get_motor_throttle( 	uint32_t serial_nb ) {
 	uint8_t buf[MSP_PROTOCOL_MAX_BUF_SZ];
   int 		ret, ret2;
   sbuf_t	sbuf;
@@ -583,7 +571,7 @@ int blk_get_motor_throttle( 	uint64_t serial_nb ) {
 //
 // Get battery state
 //
-int blk_get_battery_state( 	uint64_t serial_nb ) {
+int blk_get_battery_state( 	uint32_t serial_nb ) {
 	uint8_t buf[MSP_PROTOCOL_MAX_BUF_SZ];
   int 		ret, ret2;
   sbuf_t	sbuf;
@@ -657,7 +645,7 @@ int blk_get_battery_state( 	uint64_t serial_nb ) {
 //
 // Get IMU raw data
 //
-int blk_get_imu( 	uint64_t serial_nb ) {
+int blk_get_imu( 	uint32_t serial_nb ) {
   uint8_t buf[MSP_PROTOCOL_MAX_BUF_SZ];
   int 		ret, ret2;
   sbuf_t	sbuf;
@@ -721,7 +709,7 @@ int blk_get_imu( 	uint64_t serial_nb ) {
 //
 // Motor arming enable control
 //
-int blk_enable_motor( 	uint64_t serial_nb, uint8_t flag ) {
+int blk_enable_motor( 	uint32_t serial_nb, uint8_t flag ) {
   uint8_t buf[MSP_PROTOCOL_MAX_BUF_SZ];
   int 		ret, ret2;
   sbuf_t	sbuf;
@@ -781,7 +769,7 @@ int blk_enable_motor( 	uint64_t serial_nb, uint8_t flag ) {
 // Motor throttle_control
 // BLK_PWM_RANGE_MIN : motor stop
 //
-int blk_set_motor( 	uint64_t serial_nb, uint16_t *throttle ) {
+int blk_set_motor( 	uint32_t serial_nb, uint16_t *throttle ) {
   uint8_t buf[MSP_PROTOCOL_MAX_BUF_SZ];
   int 		ret, ret2;
   sbuf_t	sbuf;
@@ -846,7 +834,7 @@ int blk_set_motor( 	uint64_t serial_nb, uint16_t *throttle ) {
 //
 // Detect if betalink firmware is available
 //
-int blk_detect( uint64_t serial_nb )	{
+int blk_detect( uint32_t serial_nb )	{
 	uint8_t 	buf[MSP_PROTOCOL_MAX_BUF_SZ];
   int 			ret, ret2;
   sbuf_t		sbuf;
@@ -965,7 +953,7 @@ int blk_detect( uint64_t serial_nb )	{
 // Send motor throttle and refresh sensor values
 // BLK_PWM_RANGE_MIN : motor stop
 //
-int blk_update( 	uint64_t serial_nb, uint16_t *throttle ) {
+int blk_update( 	uint32_t serial_nb, uint16_t *throttle ) {
 	uint8_t buf[MSP_PROTOCOL_MAX_BUF_SZ];
   int 		ret, ret2;
   sbuf_t	sbuf;
@@ -1164,7 +1152,7 @@ void *blk_update_helper_thread( void *ptr )	{
 	return NULL;
 }
 
-int blk_update_threaded( 	uint64_t serial_nb, uint16_t *throttle ) {
+int blk_update_threaded( 	uint32_t serial_nb, uint16_t *throttle ) {
 	uint8_t buf[MSP_PROTOCOL_MAX_BUF_SZ];
   int 		ret, ret2;
   sbuf_t	sbuf;
@@ -1237,7 +1225,7 @@ int blk_update_threaded( 	uint64_t serial_nb, uint16_t *throttle ) {
 //
 // Copy state in local structure atomically
 //
-int blk_copy_state( uint64_t serial_nb, blk_state_t *state )	{
+int blk_copy_state( uint32_t serial_nb, blk_state_t *state )	{
 	int fd_idx;
 	
 	fd_idx = blk_get_fd( serial_nb );
@@ -1258,7 +1246,7 @@ int blk_copy_state( uint64_t serial_nb, blk_state_t *state )	{
 //
 // Display all states
 //
-void blk_dump_fc_state( uint64_t serial_nb )	{
+void blk_dump_fc_state( uint32_t serial_nb )	{
 	int 				i, fd_idx, ret;
 	blk_state_t state;
 	
@@ -1824,7 +1812,7 @@ int main( int argc, char *argv[] )  {
     rpm /= state.motor_count;
     if ( state.betalink_detected )
       fprintf(  stderr,
-                "#:%d\t[%d\tus]\tax:%d\tay:%d\taz:%d\tgx:%d\tgy:%d\tgz:%d\tr:%d\tp:%d\ty:%d\trpm:%d\n",
+                "#:%u\t[%d\tus]\tax:%d\tay:%d\taz:%d\tgx:%d\tgy:%d\tgz:%d\tr:%d\tp:%d\ty:%d\trpm:%d\n",
                 state.timestamp,
                 (int)elapsed_us,
                 state.acc[0], state.acc[1], state.acc[2],
