@@ -65,12 +65,13 @@ typedef struct blk_state_s {
 	int16_t         yaw;
 } blk_state_t;
 
-char *blk_name_from_serial(  uint64_t );
-int   blk_get_fd(            uint64_t );
-int   blk_init_port(         uint64_t );
-void  blk_release_port(      uint64_t );
-int 	blk_write( uint64_t serial_nb, uint8_t* buf, uint16_t size );
-int 	blk_read( uint64_t serial_nb, uint8_t* buf, uint16_t max_size );
+uint32_t  blk_crc32b( unsigned char *message );
+char      *blk_name_from_serial( uint64_t );
+int       blk_get_fd( uint64_t );
+int       blk_init_port( uint64_t );
+void      blk_release_port( uint64_t );
+int 	    blk_write( uint64_t serial_nb, uint8_t* buf, uint16_t size );
+int 	    blk_read( uint64_t serial_nb, uint8_t* buf, uint16_t max_size );
 
 //
 // 	MSP API

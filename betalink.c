@@ -132,6 +132,27 @@ blk_msp_t						blk_msp[BLK_MAX_DEVICES] = 		{ 0 };		// MSP state
 //
 
 //
+// crc32 helper function
+//
+uint32_t blk_crc32b( unsigned char *message ) {
+   int      i, j;
+   uint32_t byte, crc, mask;
+
+   i = 0;
+   crc = 0xFFFFFFFF;
+   while (message[i] != 0) {
+      byte = message[i];            // Get next byte.
+      crc = crc ^ byte;
+      for (j = 7; j >= 0; j--) {    // Do eight times.
+         mask = -(crc & 1);
+         crc = (crc >> 1) ^ (0xEDB88320 & mask);
+      }
+      i = i + 1;
+   }
+   return ~crc;
+}
+
+//
 //  Get the device name from the device serial number
 //
 char *blk_name_from_serial( uint64_t serial_nb ) {
@@ -151,16 +172,15 @@ char *blk_name_from_serial( uint64_t serial_nb ) {
   
   // Look for a device name contining teensy serial number
   if ( d ) {
-  
+    printf( "BLK: list of connected UART devices...\n" );
     // Scan each file in the directory
     while ( ( dir = readdir( d ) ) != NULL ) {
+      printf( "  %s: serial number=%d\n", dir->d_name, blk_crc32b( dir->d_name ) );
       if ( strstr( dir->d_name, serial_nb_char ) )  {
       
         // A match is a device name containing the serial number
         snprintf( portname, PATH_MAX, "%s%s", BLK_SERIAL_DEV_DIR, dir->d_name );
-        #ifdef BLK_DEBUG
-        fprintf( stderr, "BLK: portname found=%s\n", portname );
-        #endif
+        printf( "BLK: portname found=%s\n", portname );
         closedir( d );
         return portname;
       }
