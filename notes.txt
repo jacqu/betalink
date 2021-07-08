@@ -147,7 +147,7 @@ Customize Jetson
 ================
 
 * Customize boot args:
-In /boot/extlinux/extlinux.conf
+In /boot/extlinux/extlinux.conf, add "usbcore.autosuspend=-1" at the end of the "APPEND" line
 
 * Add rc.local:
 cat /etc/rc.local 
