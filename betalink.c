@@ -30,12 +30,14 @@
 
 // Flags
 #define BLK_STANDALONE 										// main is added for testing
-#define BLK_THREADED_UPDATE								// activate threaded update
+//#define BLK_THREADED_UPDATE								// activate threaded update
+#define BLK_TWO_FC                        // Test with rwo FCs
 //#define BLK_DEBUG													// Display additional debug infos
 
 // Defines
 
 #define BLK_DEV_SERIALNB  643986269		    // Serial number of the test FC
+#define BLK_DEV2_SERIALNB 707372631       // Serial number of the second test FC
 #define BLK_DEV_SERIALLG	16							// Max length of a serial number
 #define BLK_BAUDRATE      B115200        	// Serial baudrate
 #define BLK_READ_TIMEOUT  5              	// Tenth of second
@@ -1714,6 +1716,9 @@ void sbufSwitchToReader(sbuf_t *buf, uint8_t *base)
 int main( int argc, char *argv[] )  {
 
   int i, ii, ret, fd_idx;
+  #ifdef BLK_TWO_FC
+  int fd_idx2;
+  #endif
   struct timespec     start, cur;
   unsigned long long  elapsed_us;
   blk_state_t					state;
@@ -1740,18 +1745,36 @@ int main( int argc, char *argv[] )  {
     fprintf( stderr, "Error initializing serial port.\n" );
     exit( -1 );
   }
+  #ifdef BLK_TWO_FC
+  if ( blk_init_port( BLK_DEV2_SERIALNB ) )  {
+    fprintf( stderr, "Error initializing second serial port.\n" );
+    exit( -1 );
+  }
+  #endif
   
   // Get fd index
   fd_idx = blk_get_fd( BLK_DEV_SERIALNB );
+  #ifdef BLK_TWO_FC
+  fd_idx2 = blk_get_fd( BLK_DEV2_SERIALNB );
+  #endif
   
   // Check if fd index is valid
   if ( fd_idx == BLK_ERROR_FD )	{
   	fprintf( stderr, "Unable to find serial port descriptor.\n" );
     exit( -2 );
   }
+  #ifdef BLK_TWO_FC
+  if ( fd_idx2 == BLK_ERROR_FD )	{
+  	fprintf( stderr, "Unable to find second serial port descriptor.\n" );
+    exit( -2 );
+  }
+  #endif
   
   // Dump FC state
 	blk_dump_fc_state( BLK_DEV_SERIALNB );
+	#ifdef BLK_TWO_FC
+	blk_dump_fc_state( BLK_DEV2_SERIALNB );
+	#endif
 	
 	// Enable motor
 	ret = blk_enable_motor( BLK_DEV_SERIALNB, true );
@@ -1759,7 +1782,14 @@ int main( int argc, char *argv[] )  {
     fprintf( stderr, "Error %d in blk_enable_motor.\n", ret );
     exit( -3 );
   }
-
+  #ifdef BLK_TWO_FC
+  ret = blk_enable_motor( BLK_DEV2_SERIALNB, true );
+	if ( ret )  {
+    fprintf( stderr, "Error %d in blk_enable_motor on second FC.\n", ret );
+    exit( -3 );
+  }
+  #endif
+  
   // Testing roundtrip serial link duration
   for ( i = 0; i < BLK_NB_PING; i++ )  {
   	
@@ -1829,6 +1859,76 @@ int main( int argc, char *argv[] )  {
                 state.acc[0], state.acc[1], state.acc[2],
                 state.gyr[0], state.gyr[1], state.gyr[2],
                 rpm );
+    
+    #ifdef BLK_TWO_FC
+    
+    // Get starting time
+  	clock_gettime( CLOCK_MONOTONIC, &start );
+  	
+  	// Serial transaction with FC
+    if ( ( i / BLK_STEP_PERIOD ) % 2 )	{
+    	#ifdef BLK_THREADED_UPDATE
+    	ret = blk_update_threaded( BLK_DEV2_SERIALNB, throttle_max );
+    	#else
+    	ret = blk_update( BLK_DEV2_SERIALNB, throttle_max );
+    	#endif
+	    if ( ret )  {
+    		fprintf( stderr, "Error %d in blk_update on second FC.\n", ret );
+    		break;
+  		}
+    }
+    else {
+    	#ifdef BLK_THREADED_UPDATE
+    	ret = blk_update_threaded( BLK_DEV2_SERIALNB, throttle_min );
+    	#else
+    	ret = blk_update( BLK_DEV2_SERIALNB, throttle_min );
+    	#endif
+    	if ( ret )  {
+    		fprintf( stderr, "Error %d in blk_update on second FC.\n", ret );
+    		break;
+  		}
+    }
+    
+    // Compute time elapsed
+    clock_gettime( CLOCK_MONOTONIC, &cur );
+    elapsed_us =  ( cur.tv_sec * 1e6 + cur.tv_nsec / 1e3 ) -
+                  ( start.tv_sec * 1e6 + start.tv_nsec / 1e3 );
+    
+    
+    // Read current state
+		ret = blk_copy_state( BLK_DEV2_SERIALNB, &state );
+		if ( ret )	{
+    	fprintf( stderr, "Error %d in blk_copy_state on second FC.\n", ret );
+    	break;
+  	}
+		
+    // Display sensors
+    
+    rpm = 0;
+    for ( ii = 0; ii < state.motor_count; ii++ )	{
+	    rpm += state.rpm[ii];
+    }
+    rpm /= state.motor_count;
+    if ( state.betalink_detected )
+      fprintf(  stderr,
+                "##:%u\t[%d\tus]\tax:%d\tay:%d\taz:%d\tgx:%d\tgy:%d\tgz:%d\tr:%d\tp:%d\ty:%d\trpm:%d\n",
+                state.timestamp,
+                (int)elapsed_us,
+                state.acc[0], state.acc[1], state.acc[2],
+                state.gyr[0], state.gyr[1], state.gyr[2],
+                (int)(state.roll * BLK_MSP_ANGLE_SCALING),
+                (int)(state.pitch * BLK_MSP_ANGLE_SCALING),
+                (int)(state.yaw * BLK_MSP_ANGLE_SCALING),
+                rpm );
+    else
+      fprintf(  stderr,
+                "##:%d\t[%d\tus]\tax:%d\tay:%d\taz:%d\tgx:%d\tgy:%d\tgz:%d\trpm:%d\n",
+                i,
+                (int)elapsed_us,
+                state.acc[0], state.acc[1], state.acc[2],
+                state.gyr[0], state.gyr[1], state.gyr[2],
+                rpm );
+    #endif
               
     // Wait loop period
     usleep( BLK_PERIOD );
@@ -1843,7 +1943,10 @@ int main( int argc, char *argv[] )  {
 
   // Restoring serial port initial configuration
   blk_release_port( BLK_DEV_SERIALNB );
-
+  #ifdef BLK_TWO_FC
+  blk_release_port( BLK_DEV2_SERIALNB );
+  #endif
+  
   return 0;
 }
 #endif
