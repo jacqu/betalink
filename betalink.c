@@ -30,8 +30,8 @@
 
 // Flags
 #define BLK_STANDALONE 										// main is added for testing
-//#define BLK_THREADED_UPDATE								// activate threaded update
-#define BLK_TWO_FC                        // Test with rwo FCs
+#define BLK_THREADED_UPDATE								// activate threaded update
+//#define BLK_TWO_FC                        // Test with rwo FCs
 //#define BLK_DEBUG													// Display additional debug infos
 
 // Defines

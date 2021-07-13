@@ -130,8 +130,21 @@ Line 37:
 In src/main/msp/msp_serial.h line 31, insert following code:
 #define BLK_SERIAL_WATCHDOG 10			// Number of serial task polling periods
 
-Advanced tuning
-===============
+
+Serial latency optimization
+===========================
+
+In function waitForSerialPortToFinishTransmitting (line 533 of main/io/serial.c):
+Replace delay(10); by delay(1); (delay parameter is in ms)
+
+In function CDC_Send_DATA (line 440 of main/vcp_hal/usbd_cdc_interface.c):
+Comment out delay(1)
+
+In function VCP_DataTx (line 221 of main/vcpf4/usbd_cdc_vcp.c):
+Comment out delay(1)
+
+Advanced CLI tuning
+===================
 
 To change serial task frequency, in Betaflight configurator CLI:
 set serial_update_rate_hz=400
