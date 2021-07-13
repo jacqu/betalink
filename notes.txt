@@ -134,20 +134,20 @@ In src/main/msp/msp_serial.h line 31, insert following code:
 Serial latency optimization
 ===========================
 
-In function waitForSerialPortToFinishTransmitting (line 533 of main/io/serial.c):
-Replace delay(10); by delay(1); (delay parameter is in ms)
+On USB:
+	With set serial_update_rate_hz=400:
+	# min: 949 us	 max: 6621 us	 avg: 2715 us
+	With set serial_update_rate_hz=1000:
+	# min: 1039 us	 max: 4352 us	 avg: 1509 us
 
-In function CDC_Send_DATA (line 440 of main/vcp_hal/usbd_cdc_interface.c):
-Comment out delay(1)
+With FTDI UART C232HD and set serial_update_rate_hz=1000:
 
-In function VCP_DataTx (line 221 of main/vcpf4/usbd_cdc_vcp.c):
-Comment out delay(1)
 
 Advanced CLI tuning
 ===================
 
 To change serial task frequency, in Betaflight configurator CLI:
-set serial_update_rate_hz=400
+set serial_update_rate_hz=1000
 save
 
 To tune the RPM low pass filter cut frequency to avoid aliasing in CLI:

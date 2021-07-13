@@ -30,18 +30,18 @@
 
 // Flags
 #define BLK_STANDALONE 										// main is added for testing
-#define BLK_THREADED_UPDATE								// activate threaded update
+//#define BLK_THREADED_UPDATE								// activate threaded update
 //#define BLK_TWO_FC                        // Test with rwo FCs
 //#define BLK_DEBUG													// Display additional debug infos
 
 // Defines
 
-#define BLK_DEV_SERIALNB  643986269		    // Serial number of the test FC
+#define BLK_DEV_SERIALNB  3399628743//2244512454		  // Serial number of the test FC
 #define BLK_DEV2_SERIALNB 707372631       // Serial number of the second test FC
 #define BLK_DEV_SERIALLG	16							// Max length of a serial number
-#define BLK_BAUDRATE      B115200        	// Serial baudrate
+#define BLK_BAUDRATE      B115200//B230400	        // Serial baudrate
 #define BLK_READ_TIMEOUT  5              	// Tenth of second
-#define BLK_NB_PING       100           	// Nb roundtrip communication
+#define BLK_NB_PING       500           	// Nb roundtrip communication
 #define BLK_STEP_REF      200            	// Velocity reference step size (10 rpm motor)
 #define BLK_PERIOD        3000          	// Period of serial exchange (us)
 #define BLK_STEP_PERIOD   200            	// Duration of a step (itertions)
@@ -1715,9 +1715,11 @@ void sbufSwitchToReader(sbuf_t *buf, uint8_t *base)
 //
 int main( int argc, char *argv[] )  {
 
-  int i, ii, ret, fd_idx;
+  int 			i, ii, ret, fd_idx;
+  uint32_t	d_min = BLK_PERIOD, d_max = 0, d_avg = 0;
   #ifdef BLK_TWO_FC
   int fd_idx2;
+  uint32_t	d_min2 = BLK_PERIOD, d_max2 = 0, d_avg2 = 0;
   #endif
   struct timespec     start, cur;
   unsigned long long  elapsed_us;
@@ -1825,7 +1827,13 @@ int main( int argc, char *argv[] )  {
     elapsed_us =  ( cur.tv_sec * 1e6 + cur.tv_nsec / 1e3 ) -
                   ( start.tv_sec * 1e6 + start.tv_nsec / 1e3 );
     
-    
+    // Update stats
+    if ( elapsed_us > d_max )
+    	d_max = elapsed_us;
+    if ( elapsed_us < d_min )
+    	d_min = elapsed_us;
+    d_avg += elapsed_us;
+    	
     // Read current state
 		ret = blk_copy_state( BLK_DEV_SERIALNB, &state );
 		if ( ret )	{
@@ -1894,6 +1902,12 @@ int main( int argc, char *argv[] )  {
     elapsed_us =  ( cur.tv_sec * 1e6 + cur.tv_nsec / 1e3 ) -
                   ( start.tv_sec * 1e6 + start.tv_nsec / 1e3 );
     
+    // Update stats
+    if ( elapsed_us > d_max2 )
+    	d_max2 = elapsed_us;
+    if ( elapsed_us < d_min2 )
+    	d_min2 = elapsed_us;
+    d_avg2 += elapsed_us;
     
     // Read current state
 		ret = blk_copy_state( BLK_DEV2_SERIALNB, &state );
@@ -1933,6 +1947,12 @@ int main( int argc, char *argv[] )  {
     // Wait loop period
     usleep( BLK_PERIOD );
   }
+  
+  // Display stats
+  fprintf(  stderr, "# min: %u us\t max: %u us\t avg: %u us\n", d_min, d_max, d_avg / BLK_NB_PING );
+  #ifdef BLK_TWO_FC
+  fprintf(  stderr, "## min: %u us\t max: %u us\t avg: %u us\n", d_min2, d_max2, d_avg2 / BLK_NB_PING );
+  #endif
   
   // Disable motor
 	ret = blk_enable_motor( BLK_DEV_SERIALNB, false );
