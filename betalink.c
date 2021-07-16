@@ -30,8 +30,9 @@
 
 // Flags
 #define BLK_STANDALONE 										// main is added for testing
-//#define BLK_THREADED_UPDATE								// activate threaded update
+#define BLK_THREADED_UPDATE								// activate threaded update
 //#define BLK_TWO_FC                        // Test with rwo FCs
+//#define BLK_SINGLE_THREAD										// Only one thread per device at a time
 //#define BLK_DEBUG													// Display additional debug infos
 
 // Defines
@@ -1077,7 +1078,6 @@ int blk_update( 	uint32_t serial_nb, uint16_t *throttle ) {
 // threaded version: no waiting time for packet response
 //
 void *blk_update_helper_thread( void *ptr )	{
-	uint64_t 	serial_nb;
 	int				fd_idx;
 	int 			i, ret;
 	sbuf_t		sbuf;
@@ -1086,20 +1086,16 @@ void *blk_update_helper_thread( void *ptr )	{
 	// Declare the thread as detached so its ressources are released at termination
 	pthread_detach( pthread_self() );
 	
-	serial_nb = (uint64_t)(*(uint64_t*)ptr);
-	
 	// Get fd index
-  fd_idx = blk_get_fd( serial_nb );
-  
-  // Check if fd index is valid
-  if ( fd_idx == BLK_ERROR_FD )	{
-	  free( ptr );
-	  pthread_mutex_unlock( &blk_state[fd_idx].read_mutex );
-    return NULL;
-  }
+	fd_idx = (int)(*(int*)ptr);
+	
+	#ifndef BLK_SINGLE_THREAD
+	// Avoid running two thread at a time for the same device
+	pthread_mutex_lock( &blk_state[fd_idx].read_mutex );
+	#endif
 	
 	// Read response
-	ret = blk_read( serial_nb, buf, MSP_PROTOCOL_MAX_BUF_SZ );
+	ret = blk_read( blk_devname[fd_idx], buf, MSP_PROTOCOL_MAX_BUF_SZ );
 	
 	// Critical section
 	pthread_mutex_lock( &blk_state[fd_idx].update_mutex );
@@ -1151,6 +1147,7 @@ void *blk_update_helper_thread( void *ptr )	{
 	free( ptr );
 	
 	pthread_mutex_unlock( &blk_state[fd_idx].read_mutex );
+	
 	return NULL;
 }
 
@@ -1205,14 +1202,17 @@ int blk_update_threaded( 	uint32_t serial_nb, uint16_t *throttle ) {
   	ret2 = blk_write( serial_nb, blk_msp[fd_idx].msp_buf_out, ret );
 	  if ( ret2 == ret  )	{
 	  	pthread_t reader_thread;
-	  	uint64_t	*serial_nb_pt = malloc( sizeof( uint64_t ) );
+	  	int	*fd_idx_pt = malloc( sizeof( int ) );
 	  	
-	  	*serial_nb_pt = serial_nb;
+	  	*fd_idx_pt = fd_idx;
 	  	
+	  	#ifdef BLK_SINGLE_THREAD
+			// Avoid creating two thread at a time for the same device
+			pthread_mutex_lock( &blk_state[fd_idx].read_mutex );
+			#endif
+	
 	  	// Create listening thread
-	  	// Mutex allows for a single thread to be created at a time
-	  	pthread_mutex_lock( &blk_state[fd_idx].read_mutex );
-	  	pthread_create( &reader_thread, NULL , blk_update_helper_thread, (void*)(serial_nb_pt) );
+	  	pthread_create( &reader_thread, NULL , blk_update_helper_thread, (void*)(fd_idx_pt) );
 	  	return 0;
 	  }
 	  else {
