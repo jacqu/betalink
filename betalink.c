@@ -36,10 +36,10 @@
 
 // Defines
 
-#define BLK_DEV_SERIALNB  3399628743//2244512454		  // Serial number of the test FC
+#define BLK_DEV_SERIALNB  2244512454		  // Serial number of the test FC
 #define BLK_DEV2_SERIALNB 707372631       // Serial number of the second test FC
 #define BLK_DEV_SERIALLG	16							// Max length of a serial number
-#define BLK_BAUDRATE      B115200//B230400	        // Serial baudrate
+#define BLK_BAUDRATE      B230400	        // Serial baudrate
 #define BLK_READ_TIMEOUT  5              	// Tenth of second
 #define BLK_NB_PING       500           	// Nb roundtrip communication
 #define BLK_STEP_REF      200            	// Velocity reference step size (10 rpm motor)
@@ -1945,7 +1945,12 @@ int main( int argc, char *argv[] )  {
     #endif
               
     // Wait loop period
-    usleep( BLK_PERIOD );
+    //usleep( BLK_PERIOD );
+    do	{
+    	clock_gettime( CLOCK_MONOTONIC, &cur );
+    	elapsed_us =  ( cur.tv_sec * 1e6 + cur.tv_nsec / 1e3 ) -
+                  	( start.tv_sec * 1e6 + start.tv_nsec / 1e3 );
+    } while ( elapsed_us < BLK_PERIOD );
   }
   
   // Display stats

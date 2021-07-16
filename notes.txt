@@ -128,21 +128,14 @@ Line 37:
 #include "rx/rx.h"
 
 In src/main/msp/msp_serial.h line 31, insert following code:
-#define BLK_SERIAL_WATCHDOG 10			// Number of serial task polling periods
+#define BLK_SERIAL_WATCHDOG 100			// Number of serial task polling periods
 
 
 Serial latency optimization
 ===========================
 
-On USB:
-	With set serial_update_rate_hz=400:
-	# min: 949 us	 max: 6621 us	 avg: 2715 us
-	With set serial_update_rate_hz=1000:
-	# min: 1039 us	 max: 4352 us	 avg: 1509 us
-
-With FTDI UART C232HD and set serial_update_rate_hz=1000:
-
-
+TBD
+            
 Advanced CLI tuning
 ===================
 
@@ -194,7 +187,8 @@ sudo systemctl status rc-local.service
 sudo apt-get install python-usb python3-usb
 Add this code in /etc/rc.local:
 # Exit DFU mode on DFU USB devices
+sleep 5
 until ! pydfu -x 2>/dev/null
 do
-	sleep 3
+	sleep 10
 done
