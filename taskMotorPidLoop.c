@@ -107,6 +107,13 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
   // U(z)=P.E(z)+I.Ts/2(z+1)/(z-1)
 	
 	for (unsigned i = 0; i < getMotorCount(); i++) {
+		
+		// If reference in the range PWM_RANGE_MIN+1 -> PWM_RANGE_MAX: throttle = reference
+		if ( ( blkMotorSpeedRef[i] > PWM_RANGE_MIN ) && ( blkMotorSpeedRef[i] <= PWM_RANGE_MAX ) )	{
+			motor_disarmed[i] = motorConvertFromExternal(blkMotorSpeedRef[i]);
+			continue;
+		}
+		
 		// Calculate the error
 		blkMotorPidE = blkMotorSpeedRef[i] - (float)blkMotorFilteredSpeed[i];
 		
