@@ -37,17 +37,16 @@
 
 // Defines
 
-#define BLK_DEV_SERIALNB  2244512454		  // Serial number of the test FC
+#define BLK_DEV_SERIALNB  3399628743		  // Serial number of the test FC
 #define BLK_DEV2_SERIALNB 707372631       // Serial number of the second test FC
 #define BLK_DEV_SERIALLG	16							// Max length of a serial number
 #define BLK_BAUDRATE      B230400	        // Serial baudrate
 #define BLK_READ_TIMEOUT  5              	// Tenth of second
 #define BLK_NB_PING       500           	// Nb roundtrip communication
-#define BLK_STEP_REF      200            	// Velocity reference step size (10 rpm motor)
 #define BLK_PERIOD        3000          	// Period of serial exchange (us)
 #define BLK_STEP_PERIOD   200            	// Duration of a step (itertions)
 #define BLK_MIN_VEL				3000						// Min velocity in rpm
-#define BLK_STEP_VEL			1000						// Step amplitude in rpm
+#define BLK_STEP_VEL			200							// Step amplitude in rpm
 
 #if defined(__linux__)
 #define BLK_SERIAL_DEV_DIR "/dev/serial/by-id/"
@@ -864,12 +863,7 @@ int blk_detect( uint32_t serial_nb )	{
   // Define MSP data
   sbufInit( &sbuf, buf, (uint8_t*)(buf+MSP_PROTOCOL_MAX_BUF_SZ) );
   for ( i = 0; i < blk_state[fd_idx].motor_count; i++ )	{
-  	if ( throttle[i] < BLK_PWM_RANGE_MIN )
-  		sbufWriteU16( &sbuf, BLK_PWM_RANGE_MIN );
-  	else if ( throttle[i] > BLK_PWM_RANGE_MAX )
-  		sbufWriteU16( &sbuf, BLK_PWM_RANGE_MAX );
-  	else
-	  	sbufWriteU16( &sbuf, vel_ref[i] );
+	  sbufWriteU16( &sbuf, vel_ref[i] );
 	}
   
   // Start communication
