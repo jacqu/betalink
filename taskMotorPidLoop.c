@@ -108,6 +108,12 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 	
 	for (unsigned i = 0; i < getMotorCount(); i++) {
 		
+		// If reference below or equal to PWM_RANGE_MIN: force to PWM_RANGE_MIN (motor stop)
+		if ( blkMotorSpeedRef[i] <= PWM_RANGE_MIN )	{
+			motor_disarmed[i] = motorConvertFromExternal(PWM_RANGE_MIN);
+			continue;
+		}
+			
 		// If reference in the range PWM_RANGE_MIN+1 -> PWM_RANGE_MAX: throttle = reference
 		if ( ( blkMotorSpeedRef[i] > PWM_RANGE_MIN ) && ( blkMotorSpeedRef[i] <= PWM_RANGE_MAX ) )	{
 			motor_disarmed[i] = motorConvertFromExternal(blkMotorSpeedRef[i]);
