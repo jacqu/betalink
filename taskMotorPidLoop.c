@@ -3,10 +3,21 @@
 #define BLK_MOTOR_PID_I				0.7
 #define BLK_MOTOR_FILTER_SZ		5
 #ifdef BLK_TEST
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <time.h>
+#include <math.h>
 #define FAST_RAM_ZERO_INIT
 #define FAST_CODE_NOINLINE
-#define MAX_SUPPORTED_MOTORS	4
-#define EMU_MOTOR_TIME_CST		0.05
+#define MAX_SUPPORTED_MOTORS	1
+#define PWM_RANGE_MIN 				1000
+#define PWM_RANGE_MAX 				2000
+#define BLK_EMU_MOTOR_VEL			3000.0
+#define BLK_EMU_MOTOR_REF			3500
+#define BLK_NB_ITER_TEST			8000
+#define BLK_NOISE_SPIKE				500.0
+#define BLK_SPIKE_PROBA				0.05
 #endif
 
 // Globals
@@ -17,6 +28,24 @@ FAST_RAM_ZERO_INIT uint8_t		blkPidActiveFlag;															// PID is active onl
 #ifdef BLK_TEST
 float 												motor_disarmed[MAX_SUPPORTED_MOTORS];
 uint32_t 											targetPidLooptime = 125;
+
+float motorConvertFromExternal(uint16_t externalValue)
+{
+  return (float)externalValue;
+}
+
+uint16_t getDshotTelemetry(uint8_t index)
+{
+	if ( rand() < BLK_SPIKE_PROBA * (float)RAND_MAX )
+		return (uint16_t)lrint(BLK_EMU_MOTOR_VEL + BLK_NOISE_SPIKE * (float)rand() / RAND_MAX);
+	else
+		return (uint16_t)lrint(BLK_EMU_MOTOR_VEL);
+}
+
+uint8_t getMotorCount(void)
+{
+    return MAX_SUPPORTED_MOTORS;
+}
 #endif
 
 // Motor speed regulation
@@ -59,8 +88,9 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 		#endif
 		
 		// Median filtering: bubble sorting
-		for (unsigned ii = 0; ii < BLK_MOTOR_FILTER_SZ; ii++)
+		for (unsigned ii = 0; ii < BLK_MOTOR_FILTER_SZ; ii++)	{
 			blkMotorMedianFilterHistory[i][ii] = blkMotorFilterHistory[i][ii];
+		}
 		for (unsigned k = 0; k < BLK_MOTOR_FILTER_SZ - 1; k++) {
     	for (unsigned l = 0; l < BLK_MOTOR_FILTER_SZ - k - 1; l++) {
         if (blkMotorMedianFilterHistory[i][l] > blkMotorMedianFilterHistory[i][l + 1]) {
@@ -71,7 +101,6 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
     	}
 		}
 		blkMotorFilteredSpeed[i] = blkMotorMedianFilterHistory[i][(unsigned)((BLK_MOTOR_FILTER_SZ-1)/2)];
-		
 	}
 	
 	// Calculate PI control law
@@ -85,7 +114,7 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 		blkMotorPidUp = BLK_MOTOR_PID_P * blkMotorPidE;
 		blkMotorPidUi = blkMotorPidUi1[i] + 
 										BLK_MOTOR_PID_I * targetPidLooptime * 1e-6 / 2.0 * ( blkMotorPidE + blkMotorPidE1[i] );
-		
+
 		// Anti-windup
 		if ( blkMotorPidUp + blkMotorPidUi > PWM_RANGE_MAX )	{
 			blkMotorPidUi = PWM_RANGE_MAX - blkMotorPidUp;
@@ -106,14 +135,26 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 // Unitary tests
 // gcc -o test -Wall -D BLK_TEST -g taskMotorPidLoop.c
 #ifdef BLK_TEST
-float motorConvertFromExternal(uint16_t externalValue)
-{
-  return (float)externalValue;
-}
-
-uint16_t getDshotTelemetry(uint8_t index)
-{
-  return dshotTelemetryState.motorState[index].telemetryValue;
+int main( void )	{
+	
+	srand( time(NULL) );
+	
+	blkPidActiveFlag = 1;
+	
+	for (unsigned i = 0; i < MAX_SUPPORTED_MOTORS; i++)
+		blkMotorSpeedRef[i] = BLK_EMU_MOTOR_REF;
+	
+	for (unsigned i = 0; i < BLK_NB_ITER_TEST; i++)	{
+		
+		taskMotorPidLoop(  );
+		
+		for (unsigned ii = 0; ii < MAX_SUPPORTED_MOTORS; ii++)	{
+			printf( "%d\t%d\t%f\t", blkMotorSpeedRef[ii], blkMotorFilteredSpeed[ii], motor_disarmed[ii] );
+		}
+		printf( "\n" );
+	}
+	
+	return 0;
 }
 #endif
 
