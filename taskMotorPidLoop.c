@@ -1,7 +1,9 @@
 // Defines
-#define BLK_MOTOR_PID_P				0.051
-#define BLK_MOTOR_PID_I				0.7
-#define BLK_MOTOR_FILTER_SZ		5
+#define BLK_MOTOR_PID_P				0.051								// P gain
+#define BLK_MOTOR_PID_I				0.7									// I gain
+#define BLK_MOTOR_FILTER_SZ		5										// Median filter dimension
+#define BLK_FILTER_ACTIVE													// Flag to activate filtering
+
 #ifdef BLK_TEST
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,6 +58,7 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 	float 					blkMotorPidUi;
 	float 					blkMotorPidUp;
 	float 					blkMotorPidE;
+	float 					blkAvg;
 	uint16_t 				blkMotorMedianFilterHistory[MAX_SUPPORTED_MOTORS][BLK_MOTOR_FILTER_SZ];
 	
 	// Skip if PID not active
@@ -75,6 +78,7 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 	}
 	
 	// Filtering motor speed
+	#ifdef BLK_FILTER_ACTIVE
 	for (unsigned i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
 	
 		// Shifting history buffer one sample in the past
@@ -100,8 +104,17 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
         }
     	}
 		}
-		blkMotorFilteredSpeed[i] = blkMotorMedianFilterHistory[i][(unsigned)((BLK_MOTOR_FILTER_SZ-1)/2)];
+		
+		// Averaging the median samples
+		blkAvg = 0.0;
+		for (unsigned ii = 1; ii < BLK_MOTOR_FILTER_SZ-1; ii++)	{
+			blkAvg += blkMotorMedianFilterHistory[i][ii];	
+		}
+		blkMotorFilteredSpeed[i] = (uint16_t)lrint( blkAvg / (BLK_MOTOR_FILTER_SZ-2) );
 	}
+	#else
+	blkMotorFilteredSpeed[i] = getDshotTelemetry(i);
+	#endif
 	
 	// Calculate PI control law
   // U(z)=P.E(z)+I.Ts/2(z+1)/(z-1)
