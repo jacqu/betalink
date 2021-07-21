@@ -87,8 +87,8 @@ int blk_get_battery_state( uint32_t serial_nb );
 int blk_copy_state( uint32_t serial_nb, blk_state_t *state );
 void blk_dump_fc_state( uint32_t serial_nb );
 int blk_detect( uint32_t serial_nb );
-int blk_update( 	uint32_t serial_nb, uint16_t *throttle );
-int blk_update_threaded( 	uint32_t serial_nb, uint16_t *throttle );
+int blk_update( 	uint32_t serial_nb, uint16_t *vel_ref );
+int blk_update_threaded( 	uint32_t serial_nb, uint16_t *vel_ref );
 uint8_t msp_crc8_dvb_s2_data( uint8_t *data, uint8_t start, uint8_t end );
 uint8_t msp_crc8_dvb_s2( uint8_t crc, uint8_t ch );
 

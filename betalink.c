@@ -942,8 +942,9 @@ int blk_detect( uint32_t serial_nb )	{
 
 //
 // Send motor velocity reference and refresh sensor values
-// If betalink firmware: vel_ref = velocity reference
-// If no betalink firmware: vel_ref = throttle (1000-2000)
+// If 1000 < vel_ref <= 2000 => throttle signal
+// If 2000 < vel_ref => velocity reference
+// If vel_ref <= 1000 => stop motor
 //
 int blk_update( 	uint32_t serial_nb, uint16_t *vel_ref ) {
 	uint8_t buf[MSP_PROTOCOL_MAX_BUF_SZ];
