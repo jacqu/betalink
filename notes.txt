@@ -106,6 +106,9 @@ near line 2022:
 	
 				break;
 
+In src/main/flight/rpm_filter.c remove "static" at line 67:
+FAST_RAM_ZERO_INIT float   				filteredMotorErpm[MAX_SUPPORTED_MOTORS];
+
 In src/main/msp/msp_protocol.h add a new opcode at the end of the file:
 #define MSP_BETALINK             207    //in & out message    Betalink transaction opcode
 
@@ -156,6 +159,10 @@ Advanced CLI tuning
 
 To change serial task frequency, in Betaflight configurator CLI:
 set serial_update_rate_hz=1000
+save
+
+To tune the RPM low pass filter cut frequency to avoid aliasing in CLI:
+set rpm_notch_lpf=150
 save
 
 Customize Jetson

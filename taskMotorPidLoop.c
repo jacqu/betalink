@@ -1,8 +1,10 @@
 // Defines
-#define BLK_MOTOR_PID_P				0.051								// P gain
-#define BLK_MOTOR_PID_I				0.7									// I gain
-#define BLK_MOTOR_FILTER_SZ		5										// Median filter dimension
+#define BLK_MOTOR_PID_P				0.075								// P gain
+#define BLK_MOTOR_PID_I				1.5									// I gain
+#define BLK_MOTOR_FILTER_SZ		8										// Median filter dimension
+#define BLK_MOTOR_FILTER_EX		1										// Averaging filtering exclusion band
 #define BLK_FILTER_ACTIVE													// Flag to activate filtering
+#define BLK_FILTER_LP															// Flag to activate lowpass filtering
 
 #ifdef BLK_TEST
 #include <stdio.h>
@@ -21,6 +23,9 @@
 #define BLK_NOISE_SPIKE				500.0
 #define BLK_SPIKE_PROBA				0.05
 #endif
+
+// Externs
+extern FAST_RAM_ZERO_INIT float   filteredMotorErpm[MAX_SUPPORTED_MOTORS];
 
 // Globals
 FAST_RAM_ZERO_INIT uint16_t		blkMotorSpeedRef[MAX_SUPPORTED_MOTORS];				// Regulation reference
@@ -88,7 +93,11 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 		#ifdef BLK_TEST
 		blkMotorFilterHistory[i][0] = getDshotTelemetry(i);
 		#else
+		#ifdef BLK_FILTER_LP
+		blkMotorFilterHistory[i][0] = (uint16_t)lrint( (float)filteredMotorErpm[i] * 100.0 * 2.0 / motorConfig()->motorPoleCount );
+		#else
 		blkMotorFilterHistory[i][0] = (uint16_t)lrint( (float)getDshotTelemetry(i) * 100.0 * 2.0 / motorConfig()->motorPoleCount );
+		#endif
 		#endif
 		
 		// Median filtering: bubble sorting
@@ -107,10 +116,10 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 		
 		// Averaging the median samples
 		blkAvg = 0.0;
-		for (unsigned ii = 1; ii < BLK_MOTOR_FILTER_SZ-1; ii++)	{
+		for (unsigned ii = BLK_MOTOR_FILTER_EX; ii < BLK_MOTOR_FILTER_SZ-BLK_MOTOR_FILTER_EX; ii++)	{
 			blkAvg += blkMotorMedianFilterHistory[i][ii];	
 		}
-		blkMotorFilteredSpeed[i] = (uint16_t)lrint( blkAvg / (BLK_MOTOR_FILTER_SZ-2) );
+		blkMotorFilteredSpeed[i] = (uint16_t)lrint( blkAvg / (BLK_MOTOR_FILTER_SZ-2*BLK_MOTOR_FILTER_EX) );
 	}
 	#else
 	blkMotorFilteredSpeed[i] = getDshotTelemetry(i);
