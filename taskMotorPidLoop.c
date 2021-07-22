@@ -2,9 +2,10 @@
 #define BLK_MOTOR_PID_P				0.075								// P gain
 #define BLK_MOTOR_PID_I				1.5									// I gain
 #define BLK_MOTOR_FILTER_SZ		8										// Median filter dimension
-#define BLK_MOTOR_FILTER_EX		1										// Averaging filtering exclusion band
+#define BLK_MOTOR_FILTER_EX		0										// Averaging filtering exclusion band
 #define BLK_FILTER_ACTIVE													// Flag to activate filtering
 #define BLK_FILTER_LP															// Flag to activate lowpass filtering
+//#define BLK_FILTER_MED														// Flag to activate median filtering
 
 #ifdef BLK_TEST
 #include <stdio.h>
@@ -100,10 +101,12 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 		#endif
 		#endif
 		
-		// Median filtering: bubble sorting
 		for (unsigned ii = 0; ii < BLK_MOTOR_FILTER_SZ; ii++)	{
 			blkMotorMedianFilterHistory[i][ii] = blkMotorFilterHistory[i][ii];
 		}
+		
+		// Median filtering: bubble sorting
+		#ifdef BLK_FILTER_MED
 		for (unsigned k = 0; k < BLK_MOTOR_FILTER_SZ - 1; k++) {
     	for (unsigned l = 0; l < BLK_MOTOR_FILTER_SZ - k - 1; l++) {
         if (blkMotorMedianFilterHistory[i][l] > blkMotorMedianFilterHistory[i][l + 1]) {
@@ -113,8 +116,9 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
         }
     	}
 		}
+		#endif
 		
-		// Averaging the median samples
+		// Averaging the median samples. If median deactivated -> averaging filter
 		blkAvg = 0.0;
 		for (unsigned ii = BLK_MOTOR_FILTER_EX; ii < BLK_MOTOR_FILTER_SZ-BLK_MOTOR_FILTER_EX; ii++)	{
 			blkAvg += blkMotorMedianFilterHistory[i][ii];	
