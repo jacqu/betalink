@@ -58,14 +58,16 @@ uint8_t getMotorCount(void)
 
 // Motor speed regulation
 FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
-	static uint16_t blkMotorFilterHistory[MAX_SUPPORTED_MOTORS][BLK_MOTOR_FILTER_SZ];
 	static float 		blkMotorPidUi1[MAX_SUPPORTED_MOTORS];
 	static float 		blkMotorPidE1[MAX_SUPPORTED_MOTORS];
 	float 					blkMotorPidUi;
 	float 					blkMotorPidUp;
 	float 					blkMotorPidE;
+	#ifdef BLK_FILTER_ACTIVE
 	float 					blkAvg;
+	static uint16_t blkMotorFilterHistory[MAX_SUPPORTED_MOTORS][BLK_MOTOR_FILTER_SZ];
 	uint16_t 				blkMotorMedianFilterHistory[MAX_SUPPORTED_MOTORS][BLK_MOTOR_FILTER_SZ];
+	#endif
 	
 	// Skip if PID not active
 	if (!blkPidActiveFlag)
@@ -76,17 +78,21 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 		for (unsigned i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
 			blkMotorPidUi1[i] = 0.0;
 			blkMotorPidE1[i] = 0.0;
+			#ifdef BLK_FILTER_ACTIVE
 			for (unsigned j = 0; j < BLK_MOTOR_FILTER_SZ; j++) {
 				blkMotorFilterHistory[i][j] = 0.0;
 			}
+			#endif
 		}
 		blkPidInitFlag = 1;
 	}
 	
-	// Filtering motor speed
-	#ifdef BLK_FILTER_ACTIVE
+	// Iterating through all motors
 	for (unsigned i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
 	
+		// Filtering motor speed
+		#ifdef BLK_FILTER_ACTIVE
+		
 		// Shifting history buffer one sample in the past
 		for (unsigned ii = BLK_MOTOR_FILTER_SZ-1; ii > 0; ii--) {
 			blkMotorFilterHistory[i][ii] = blkMotorFilterHistory[i][ii-1];
@@ -124,10 +130,11 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 			blkAvg += blkMotorMedianFilterHistory[i][ii];	
 		}
 		blkMotorFilteredSpeed[i] = (uint16_t)lrint( blkAvg / (BLK_MOTOR_FILTER_SZ-2*BLK_MOTOR_FILTER_EX) );
+		#else
+		// Raw data, no filtering
+		blkMotorFilteredSpeed[i] = getDshotTelemetry(i);
+		#endif
 	}
-	#else
-	blkMotorFilteredSpeed[i] = getDshotTelemetry(i);
-	#endif
 	
 	// Calculate PI control law
   // U(z)=P.E(z)+I.Ts/2(z+1)/(z-1)
