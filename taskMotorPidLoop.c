@@ -3,7 +3,7 @@
 #define BLK_MOTOR_PID_I				1.5									// I gain
 #define BLK_MOTOR_FILTER_SZ		8										// Median filter dimension
 #define BLK_MOTOR_FILTER_EX		0										// Averaging filtering exclusion band
-#define BLK_FILTER_ACTIVE													// Flag to activate filtering
+//#define BLK_FILTER_ACTIVE													// Flag to activate filtering
 #define BLK_FILTER_LP															// Flag to activate lowpass filtering
 //#define BLK_FILTER_MED														// Flag to activate median filtering
 
@@ -132,7 +132,7 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 		blkMotorFilteredSpeed[i] = (uint16_t)lrint( blkAvg / (BLK_MOTOR_FILTER_SZ-2*BLK_MOTOR_FILTER_EX) );
 		#else
 		// Raw data, no filtering
-		blkMotorFilteredSpeed[i] = getDshotTelemetry(i);
+		blkMotorFilteredSpeed[i] = (uint16_t)lrint( (float)getDshotTelemetry(i) * 100.0 * 2.0 / motorConfig()->motorPoleCount );
 		#endif
 	}
 	
