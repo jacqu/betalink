@@ -12,7 +12,7 @@
 #define BLK_DSHOT_MAX_THROTTLE  2047			// Max throttle
 #define BLK_DSHOT_MOTOR_OFF			0					// Motor stop command
 #define BLK_MSP_ACC_SCALING			(1/51.2)	// Accelerometer scaling factor
-#define BLK_MSP_GYR_SCALING			(4/16.4)	// Gyrometer scaling factor
+#define BLK_MSP_GYR_SCALING			(1/16.4)	// Gyrometer scaling factor
 #define BLK_MSP_MAG_SCALING			(1/1090.0)// Magnetometer scaling factor
 #define BLK_MSP_BATV_SCALING		(1/100.0)	// Battery voltage scaling factor
 #define BLK_MSP_BATA_SCALING		(1/100.0)	// Battery current scaling factor
