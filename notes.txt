@@ -1,28 +1,32 @@
-Compiling betalink
-==================
+Compile betalink test program
+===============================
+
+"betalink" executable is a CLI program to test basic functionality of the modified 
+Betaflight firmware
 
 gcc -o betalink -Wall -g -pthread betalink.c
 
-Compiling firmware
-==================
+Install Betaflight source code
+=================================
 
-Download Betaflight current version source code
-git clone --depth 1 --branch 4.2.9 https://github.com/betaflight/betaflight.git
-Extract archive
-Go into Betaflight dir
+Into the "betalink" folder, download Betaflight current release source code:
+git clone --depth 1 --branch 4.2.11 https://github.com/betaflight/betaflight.git
+(Replace "4.2.11" with the current stable Betaflight release number)
+Go into the "betaflight" folder
 Run "make arm_sdk_install"
-Run "make TARGET=STM32F745"
-Flash the hex file located in obj dir (board_name is stored in config)
 
-Adding betalink opcode
-======================
+Modify Betaflight firmware
+==========================
+
+=== Add betalink opcode ===
+
 In src/main/msp/msp.c add at line 147:
 extern FAST_RAM_ZERO_INIT uint16_t		blkMotorSpeedRef[MAX_SUPPORTED_MOTORS];
 extern FAST_RAM_ZERO_INIT uint16_t		blkMotorFilteredSpeed[MAX_SUPPORTED_MOTORS];
 extern FAST_RAM_ZERO_INIT uint8_t			blkPidActiveFlag;
 
 In src/main/msp/msp.c add a new case in function mspFcProcessOutCommandWithArg
-near line 2022:
+near line 1918, just after "switch (cmdMSP) {":
 
 		case MSP_BETALINK:
 		
@@ -112,10 +116,10 @@ FAST_RAM_ZERO_INIT float   				filteredMotorErpm[MAX_SUPPORTED_MOTORS];
 In src/main/msp/msp_protocol.h add a new opcode at the end of the file:
 #define MSP_BETALINK             207    //in & out message    Betalink transaction opcode
 
-Adding watchdog code
-====================
+=== Add watchdog code ===
 
-In src/main/msp/msp_serial.c line 498, insert following code:
+In src/main/msp/msp_serial.c line 498, insert following code before
+"mspPostProcessFnPtr mspPostProcessFn = NULL;":
 
 				// Watchdog: stop motor if too long serial inactivity
 				if ( 	millis()-mspPort->lastActivityMs > 
@@ -142,17 +146,26 @@ In src/main/msp/msp_serial.h line 31, insert following code:
 #define BLK_SERIAL_WATCHDOG 100			// Number of serial task polling periods
 
 
-Motor speed regulation on FC
-============================
+=== Add motor speed regulation on FC ===
 
-In src/main/fc/core.c line 1273, before "taskMainPidLoop" insert:
+In src/main/fc/core.c line 1272, before function "taskMainPidLoop" insert:
 // Betalink velocity regulation
 #include "../../../../betalink/taskMotorPidLoop.c"
 
-In src/main/fc/core.c, near line 1277, in function "taskMainPidLoop", insert
+In src/main/fc/core.c, near line 1290, in function "taskMainPidLoop", insert
 taskMotorPidLoop();
 after
 subTaskRcCommand(currentTimeUs);
+
+Compile betalink firmware
+===========================
+
+After having made all the source modifications listed above, you can compile the 
+modified Betaflight firmware.
+
+In the "betaflight" folder, run "make TARGET=STM32F745"
+(Replace "STM32F745" with the name of your target)
+Flash the hex file located in obj dir (board_name is stored in config)
             
 Advanced CLI tuning
 ===================
