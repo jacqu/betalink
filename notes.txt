@@ -254,6 +254,8 @@ operational betalink firmware.
 If motors, ESC and battery are connected, the motor velocity reference of the
 betalink velocity PID loop switches alternatively from BLK_MIN_VEL to
 BLK_MIN_VEL+BLK_STEP_VEL. So you should see the motors spinning.
+Don't forget to enable bidirectional DSHOT with betaflight configurator,
+since the PID velocity loop relies on this measurement to work.
 
 In the following output:
 #:2844768057	[16009	us]	ax:-93	ay:31	az:457	gx:1	gy:-10	gz:1	r:3	p:11	y:65	rpm:0
