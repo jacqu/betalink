@@ -1,10 +1,16 @@
-Compile betalink test program
-===============================
+Introduction
+============
 
-"betalink" executable is a CLI program to test basic functionality of the modified 
-Betaflight firmware
+Betalink is a modified Betaflight firmware that adds one serial command to the
+MSP protocol that controls the motor velocity and retrieve the state of the
+FC in only one transaction. It adds a motor velocity PID on the FC that uses 
+bidirectional DSHOT telemetry as feedback. A command line program called "betalink"
+is provided to test the firmware. A Simulink block is also provided within
+the project "RPIt" to interface the FC within Simulink thanks to a dedicated betalink
+block.
 
-gcc -o betalink -Wall -g -pthread betalink.c
+jacques.gangloff@unistra.fr
+
 
 Install Betaflight source code
 =================================
@@ -165,8 +171,109 @@ modified Betaflight firmware.
 
 In the "betaflight" folder, run "make TARGET=STM32F745"
 (Replace "STM32F745" with the name of your target)
+(ex: for "IFRC/IFLIGHT_F405_AIO(STM32F405)", TARGET=STM32F405)
 Flash the hex file located in obj dir (board_name is stored in config)
-            
+
+Test betalink
+=============
+
+"betalink" executable is a CLI program to test basic functionality of the modified 
+Betaflight firmware
+
+* Open betalink.c 
+
+* Modify the flags and defines below according to your setup :
+// Flags
+#define BLK_STANDALONE 										// main is added for testing
+#define BLK_THREADED_UPDATE								// activate threaded update
+//#define BLK_TWO_FC                        // Test with rwo FCs
+//#define BLK_SINGLE_THREAD										// Only one thread per device at a time
+//#define BLK_DEBUG													// Display additional debug infos
+
+// Defines
+
+#define BLK_DEV_SERIALNB  3399628743		  // Serial number of the test FC
+#define BLK_DEV2_SERIALNB 707372631       // Serial number of the second test FC
+
+If you want to test two betalink modified FC simultaneously, uncomment BLK_TWO_FC
+Modify BLK_DEV_SERIALNB according to your FC serial number.
+The serial number is displayed by running betalink:
+[...]
+  dfsfuse63: serial number=3259486894
+  nsmb0: serial number=2830586041
+  ttys000: serial number=1162087058
+  cu.usbmodem0x80000001: serial number=136178235
+  tty.usbmodem0x80000001: serial number=2810339146
+Error initializing serial port.
+
+In the example above, the FC is connected to tty.usbmodem0x80000001, so the serial
+number is 2810339146 and the define becomes:
+#define BLK_DEV_SERIALNB  2810339146		  // Serial number of the test FC
+
+* Compile with:
+gcc -o betalink -Wall -g -pthread betalink.c
+
+* Run betalink CLI program:
+./betalink
+
+Typical output:
+[...]
+BLK: betalink firmware detected!
+> Motor count:              4
+> Battery cell count:       0
+> Battery capacity [mAh]:   0
+> Battery voltage [V]:      0.04
+> Battery mAh drawn [mAh]:  0
+> Battery current [A]:      0.00
+> Accelerometer [m/s/s]:    x:-1.89	y:0.02	z:8.91
+> Gyrometer [deg/s]:        x:-0.24	y:-0.30	z:0.06
+> Magnetometer [uT]:        x:0.00	y:0.00	z:0.00
+> Roll [deg]:               0.00
+> Pitch [deg]:              11.90
+> Yaw [deg]:                346.60
+> Motor #0:
+>  Velocity [rpm]:          0
+>  Invalid DSHOT [%]:       100.00
+>  Temperature [degC]:      0
+>  Voltage [V]:             0.00
+>  Current [A]:             0.00
+>  Consumption [mAh]:       0
+> Motor #1:
+>  Velocity [rpm]:          0
+[...]
+#:228490002	[84	us]	ax:-97	ay:1	az:456	gx:-4	gy:-5	gz:1	r:0	p:11	y:346	rpm:0
+#:228490002	[36	us]	ax:-97	ay:1	az:456	gx:-4	gy:-5	gz:1	r:0	p:11	y:346	rpm:0
+#:228490002	[29	us]	ax:-97	ay:1	az:456	gx:-4	gy:-5	gz:1	r:0	p:11	y:346	rpm:0
+#:228490002	[28	us]	ax:-97	ay:1	az:456	gx:-4	gy:-5	gz:1	r:0	p:11	y:346	rpm:0
+[...]
+# min: 10 us	 max: 231 us	 avg: 34 us
+
+If you get the "BLK: betalink firmware detected!" message, you are running an
+operational betalink firmware.
+
+If motors, ESC and battery are connected, the motor velocity reference of the
+betalink velocity PID loop switches alternatively from BLK_MIN_VEL to
+BLK_MIN_VEL+BLK_STEP_VEL. So you should see the motors spinning.
+
+In the following output:
+#:2844768057	[16009	us]	ax:-93	ay:31	az:457	gx:1	gy:-10	gz:1	r:3	p:11	y:65	rpm:0
+
+16009	us indicates the time the FC takes to respond to a command in microseconds
+When increasing the "serial_update_rate_hz" on the FC (see section below) to 1000Hz:
+- The average response time on a STM32F4 is 10 milliseconds
+- The average response time on a STM32F7 is 3 milliseconds
+
+ax:-93	ay:31	az:457 gives the current accelerations
+gx:1	gy:-10	gz:1 gives the current gyro measurements
+r:3	p:11	y:65 gives the current roll pitch yaw angles
+rpm:0 give the current motor rpm
+
+If you get "BLK: Packet with unexpected size received." error messages, it means that
+the "betalink" program sends commands too quickly and the FC has not enough time to
+process them before a new command arrives. To solve this issue, either tune the FC serial
+update rate (see below), increase "BLK_PERIOD" or switch to a non threaded version of
+the transaction by commenting out "BLK_THREADED_UPDATE"
+
 Advanced CLI tuning
 ===================
 

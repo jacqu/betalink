@@ -30,20 +30,20 @@
 
 // Flags
 #define BLK_STANDALONE 										// main is added for testing
-#define BLK_THREADED_UPDATE								// activate threaded update
+//#define BLK_THREADED_UPDATE								// activate threaded update
 //#define BLK_TWO_FC                        // Test with rwo FCs
 //#define BLK_SINGLE_THREAD										// Only one thread per device at a time
 //#define BLK_DEBUG													// Display additional debug infos
 
 // Defines
 
-#define BLK_DEV_SERIALNB  3399628743		  // Serial number of the test FC
+#define BLK_DEV_SERIALNB  2810339146		  // Serial number of the test FC
 #define BLK_DEV2_SERIALNB 707372631       // Serial number of the second test FC
 #define BLK_DEV_SERIALLG	16							// Max length of a serial number
 #define BLK_BAUDRATE      B230400	        // Serial baudrate
 #define BLK_READ_TIMEOUT  5              	// Tenth of second
-#define BLK_NB_PING       500           	// Nb roundtrip communication
-#define BLK_PERIOD        3000          	// Period of serial exchange (us)
+#define BLK_NB_PING       1000           	// Nb roundtrip communication
+#define BLK_PERIOD        30000          	// Period of serial exchange (us)
 #define BLK_STEP_PERIOD   200            	// Duration of a step (itertions)
 #define BLK_MIN_VEL				3000						// Min velocity in rpm
 #define BLK_STEP_VEL			200							// Step amplitude in rpm
@@ -355,7 +355,7 @@ int blk_read( uint32_t serial_nb, uint8_t* buf, uint16_t max_size ) {
   uint16_t						size = max_size;
   struct timespec     start, cur;
   unsigned long long  elapsed_us;
-  
+
   // Get fd index
   fd_idx = blk_get_fd( serial_nb );
   
@@ -735,7 +735,7 @@ int blk_enable_motor( 	uint32_t serial_nb, uint8_t flag ) {
 	  sbufWriteU8( &sbuf, true );			// ArmingDisabled
   	sbufWriteU8( &sbuf, false );		// disableRunawayTakeoff
   }
-  
+
   // Start communication
   ret = msp_encode( fd_idx, MSP_SET_ARMING_DISABLED, buf, sbufIndex(&sbuf) );
   if ( ret > 0 )	{
@@ -1939,6 +1939,7 @@ int main( int argc, char *argv[] )  {
   #endif
   
   // Disable motor
+
 	ret = blk_enable_motor( BLK_DEV_SERIALNB, false );
 	if ( ret )  {
     fprintf( stderr, "Error %d in blk_enable_motor.\n", ret );
