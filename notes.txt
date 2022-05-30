@@ -4,7 +4,7 @@ Introduction
 Betalink is a modified Betaflight firmware that adds one serial command to the
 MSP protocol that controls the motor velocity and retrieve the state of the
 FC in only one transaction. It adds a motor velocity PID on the FC that uses 
-bidirectional DSHOT telemetry as feedback. A command line program called "betalink"
+bidirectional DSHOT telemetry as feedback. A command-line program called "betalink"
 is provided to test the firmware. A Simulink block is also provided within
 the project "RPIt" to interface the FC within Simulink thanks to a dedicated betalink
 block.
@@ -273,7 +273,7 @@ rpm:0 give the current motor rpm
 If you get "BLK: Packet with unexpected size received." error messages, it means that
 the "betalink" program sends commands too quickly and the FC has not enough time to
 process them before a new command arrives. To solve this issue, either tune the FC serial
-update rate (see below), increase "BLK_PERIOD" or switch to a non threaded version of
+update rate (see below), increase "BLK_PERIOD" or switch to a non-threaded version of
 the transaction by commenting out "BLK_THREADED_UPDATE"
 
 Advanced CLI tuning
