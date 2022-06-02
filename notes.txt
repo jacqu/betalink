@@ -15,7 +15,7 @@ jacques.gangloff@unistra.fr
 Install Betaflight source code
 =================================
 
-Into the "betalink" folder, download Betaflight current release source code:
+Into the folder where you installed "betalink", download Betaflight current release source code:
 git clone --depth 1 --branch 4.2.11 https://github.com/betaflight/betaflight.git
 (Replace "4.2.11" with the current stable Betaflight release number)
 Go into the "betaflight" folder
