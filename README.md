@@ -6,3 +6,8 @@ bidirectional DSHOT telemetry as feedback. A command line program called "betali
 is provided to test the firmware. A Simulink block is also provided within
 the project "RPIt" to interface the FC within Simulink thanks to a dedicated betalink
 block.
+
+Check these YouTube video for a complete tutorial on how to install and use Betalink with Simulink:
+Part 1: https://youtu.be/BTN4LSLOXPI
+Part 2: https://youtu.be/keIpGpJuP_k
+Part 3: https://youtu.be/r3Sk5nzbywQ
