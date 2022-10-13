@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <math.h>
-#define FAST_RAM_ZERO_INIT
+#define FAST_DATA_ZERO_INIT
 #define FAST_CODE_NOINLINE
 #define MAX_SUPPORTED_MOTORS	1
 #define PWM_RANGE_MIN 				1000
@@ -26,16 +26,16 @@
 #endif
 
 // Externs
-extern FAST_RAM_ZERO_INIT float   filteredMotorErpm[MAX_SUPPORTED_MOTORS];
+extern FAST_DATA_ZERO_INIT float  filteredMotorErpm[MAX_SUPPORTED_MOTORS];
 
 // Globals
-FAST_RAM_ZERO_INIT uint16_t		blkMotorSpeedRef[MAX_SUPPORTED_MOTORS];				// Regulation reference
-FAST_RAM_ZERO_INIT uint16_t		blkMotorFilteredSpeed[MAX_SUPPORTED_MOTORS];	// Regulation measurement
-FAST_RAM_ZERO_INIT uint8_t		blkPidInitFlag;																// PID needs reset
-FAST_RAM_ZERO_INIT uint8_t		blkPidActiveFlag;															// PID is active only when Betalink MSP command received
+FAST_DATA_ZERO_INIT uint16_t			blkMotorSpeedRef[MAX_SUPPORTED_MOTORS];				// Regulation reference
+FAST_DATA_ZERO_INIT uint16_t			blkMotorFilteredSpeed[MAX_SUPPORTED_MOTORS];	// Regulation measurement
+FAST_DATA_ZERO_INIT uint8_t				blkPidInitFlag;																// PID needs reset
+FAST_DATA_ZERO_INIT uint8_t				blkPidActiveFlag;															// PID is active only when Betalink MSP command received
 #ifdef BLK_TEST
-float 												motor_disarmed[MAX_SUPPORTED_MOTORS];
-uint32_t 											targetPidLooptime = 125;
+float 														motor_disarmed[MAX_SUPPORTED_MOTORS];
+uint32_t 													targetPidLooptime = 125;
 
 float motorConvertFromExternal(uint16_t externalValue)
 {
@@ -203,33 +203,3 @@ int main( void )	{
 	return 0;
 }
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

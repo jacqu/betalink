@@ -16,8 +16,8 @@ Install Betaflight source code
 =================================
 
 Into the folder where you installed "betalink", download Betaflight current release source code:
-git clone --depth 1 --branch 4.2.11 https://github.com/betaflight/betaflight.git
-(Replace "4.2.11" with the current stable Betaflight release number)
+git clone --depth 1 --branch 4.3.1 https://github.com/betaflight/betaflight.git
+(Replace "4.3.1" with the current stable Betaflight 4.3 release number)
 Go into the "betaflight" folder
 Run "make arm_sdk_install"
 
@@ -26,13 +26,13 @@ Modify Betaflight firmware
 
 === Add betalink opcode ===
 
-In src/main/msp/msp.c add at line 147:
-extern FAST_RAM_ZERO_INIT uint16_t		blkMotorSpeedRef[MAX_SUPPORTED_MOTORS];
-extern FAST_RAM_ZERO_INIT uint16_t		blkMotorFilteredSpeed[MAX_SUPPORTED_MOTORS];
-extern FAST_RAM_ZERO_INIT uint8_t			blkPidActiveFlag;
+In src/main/msp/msp.c add at line 155:
+extern FAST_DATA_ZERO_INIT uint16_t		blkMotorSpeedRef[MAX_SUPPORTED_MOTORS];
+extern FAST_DATA_ZERO_INIT uint16_t		blkMotorFilteredSpeed[MAX_SUPPORTED_MOTORS];
+extern FAST_DATA_ZERO_INIT uint8_t		blkPidActiveFlag;
 
 In src/main/msp/msp.c add a new case in function mspFcProcessOutCommandWithArg
-near line 1918, just after "switch (cmdMSP) {":
+near line 2202, in function mspFcProcessOutCommandWithArg, just after "switch (cmdMSP) {":
 
 		case MSP_BETALINK:
 		
@@ -116,8 +116,8 @@ near line 1918, just after "switch (cmdMSP) {":
 	
 				break;
 
-In src/main/flight/rpm_filter.c remove "static" at line 67:
-FAST_RAM_ZERO_INIT float   				filteredMotorErpm[MAX_SUPPORTED_MOTORS];
+In src/main/flight/rpm_filter.c remove "static" at line 70:
+FAST_DATA_ZERO_INIT        float   filteredMotorErpm[MAX_SUPPORTED_MOTORS];
 
 In src/main/msp/msp_protocol.h add a new opcode at the end of the file:
 #define MSP_BETALINK             207    //in & out message    Betalink transaction opcode
@@ -137,7 +137,7 @@ In src/main/msp/msp_serial.c line 498, insert following code before
 					blkPidActiveFlag = 0;
 				}
 				
-Line 37:
+Line 42:
 #include "flight/mixer.h"
 
 #include "pg/motor.h"
@@ -145,8 +145,8 @@ Line 37:
 #include "rx/rx.h"
 
 Line 49:
-extern FAST_RAM_ZERO_INIT uint8_t	blkPidInitFlag;
-extern FAST_RAM_ZERO_INIT uint8_t	blkPidActiveFlag;
+extern FAST_DATA_ZERO_INIT uint8_t	blkPidInitFlag;
+extern FAST_DATA_ZERO_INIT uint8_t	blkPidActiveFlag;
 
 In src/main/msp/msp_serial.h line 31, insert following code:
 #define BLK_SERIAL_WATCHDOG 100			// Number of serial task polling periods
@@ -154,7 +154,7 @@ In src/main/msp/msp_serial.h line 31, insert following code:
 
 === Add motor speed regulation on FC ===
 
-In src/main/fc/core.c line 1272, before function "taskMainPidLoop" insert:
+In src/main/fc/core.c line 1270, before function "taskMainPidLoop" insert:
 // Betalink velocity regulation
 #include "../../../../betalink/taskMotorPidLoop.c"
 
