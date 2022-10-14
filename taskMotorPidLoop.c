@@ -60,6 +60,7 @@ uint8_t getMotorCount(void)
 FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 	static float 		blkMotorPidUi1[MAX_SUPPORTED_MOTORS];
 	static float 		blkMotorPidE1[MAX_SUPPORTED_MOTORS];
+	float 					blkMotorPidU;
 	float 					blkMotorPidUi;
 	float 					blkMotorPidUp;
 	float 					blkMotorPidE;
@@ -161,16 +162,19 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 		blkMotorPidUi = blkMotorPidUi1[i] + 
 										BLK_MOTOR_PID_I * targetPidLooptime * 1e-6 / 2.0 * ( blkMotorPidE + blkMotorPidE1[i] );
 
-		// Anti-windup
-		if ( blkMotorPidUp + blkMotorPidUi > PWM_RANGE_MAX )	{
-			blkMotorPidUi = PWM_RANGE_MAX - blkMotorPidUp;
+		// Anti-windup and saturation
+		blkMotorPidU = blkMotorPidUp + blkMotorPidUi;
+		if ( blkMotorPidU > PWM_RANGE_MAX )	{
+			blkMotorPidUi = blkMotorPidUi1[i];
+			blkMotorPidU = PWM_RANGE_MAX;
 		}
-		if ( blkMotorPidUp + blkMotorPidUi < PWM_RANGE_MIN + 1 )	{
-			blkMotorPidUi = PWM_RANGE_MIN + 1 - blkMotorPidUp;
+		if ( blkMotorPidU < PWM_RANGE_MIN + 1 )	{
+			blkMotorPidUi = blkMotorPidUi1[i];
+			blkMotorPidU = PWM_RANGE_MIN + 1;
 		}
 		
 		// Send control signal
-		motor_disarmed[i] = motorConvertFromExternal(blkMotorPidUp + blkMotorPidUi);
+		motor_disarmed[i] = motorConvertFromExternal(blkMotorPidU);
 		
 		// Update history
 		blkMotorPidUi1[i] = blkMotorPidUi;
