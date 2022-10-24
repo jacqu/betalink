@@ -77,7 +77,7 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 	// Initialize PID if needed
 	if ( !blkPidInitFlag )	{
 		for (unsigned i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
-			blkMotorPidUi1[i] = 0.0;
+			blkMotorPidUi1[i] = PWM_RANGE_MIN + 1;
 			blkMotorPidE1[i] = 0.0;
 			#ifdef BLK_FILTER_ACTIVE
 			for (unsigned j = 0; j < BLK_MOTOR_FILTER_SZ; j++) {
