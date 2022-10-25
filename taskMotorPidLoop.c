@@ -3,7 +3,7 @@
 #define BLK_MOTOR_PID_I				1.5									// I gain
 #define BLK_MOTOR_FILTER_SZ		8										// Median filter dimension
 #define BLK_MOTOR_FILTER_EX		0										// Averaging filtering exclusion band
-//#define BLK_FILTER_ACTIVE													// Flag to activate filtering
+#define BLK_FILTER_ACTIVE													// Flag to activate filtering
 #define BLK_FILTER_LP															// Flag to activate lowpass filtering
 //#define BLK_FILTER_MED														// Flag to activate median filtering
 
