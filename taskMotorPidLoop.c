@@ -1,11 +1,11 @@
 // Defines
 #define BLK_MOTOR_PID_P				0.075								// P gain
 #define BLK_MOTOR_PID_I				1.5									// I gain
-#define BLK_MOTOR_FILTER_SZ		8										// Median filter dimension
-#define BLK_MOTOR_FILTER_EX		0										// Averaging filtering exclusion band
-#define BLK_FILTER_ACTIVE													// Flag to activate filtering
-#define BLK_FILTER_LP															// Flag to activate lowpass filtering
-//#define BLK_FILTER_MED														// Flag to activate median filtering
+#define BLK_MOTOR_FILTER_SZ			8									// Median filter dimension
+#define BLK_MOTOR_FILTER_EX			0									// Averaging filtering exclusion band
+#define BLK_FILTER_ACTIVE												// Flag to activate filtering
+#define BLK_FILTER_LP													// Flag to activate lowpass filtering
+//#define BLK_FILTER_MED												// Flag to activate median filtering
 
 #ifdef BLK_TEST
 #include <stdio.h>
@@ -15,7 +15,7 @@
 #include <math.h>
 #define FAST_DATA_ZERO_INIT
 #define FAST_CODE_NOINLINE
-#define MAX_SUPPORTED_MOTORS	1
+#define MAX_SUPPORTED_MOTORS		1
 #define PWM_RANGE_MIN 				1000
 #define PWM_RANGE_MAX 				2000
 #define BLK_EMU_MOTOR_VEL			3000.0
@@ -26,16 +26,16 @@
 #endif
 
 // Externs
-extern FAST_DATA_ZERO_INIT float  filteredMotorErpm[MAX_SUPPORTED_MOTORS];
+extern FAST_DATA_ZERO_INIT float  	filteredMotorErpm[MAX_SUPPORTED_MOTORS];
 
 // Globals
-FAST_DATA_ZERO_INIT uint16_t			blkMotorSpeedRef[MAX_SUPPORTED_MOTORS];				// Regulation reference
-FAST_DATA_ZERO_INIT uint16_t			blkMotorFilteredSpeed[MAX_SUPPORTED_MOTORS];	// Regulation measurement
-FAST_DATA_ZERO_INIT uint8_t				blkPidInitFlag;																// PID needs reset
-FAST_DATA_ZERO_INIT uint8_t				blkPidActiveFlag;															// PID is active only when Betalink MSP command received
+FAST_DATA_ZERO_INIT uint16_t		blkMotorSpeedRef[MAX_SUPPORTED_MOTORS];			// Regulation reference
+FAST_DATA_ZERO_INIT uint16_t		blkMotorFilteredSpeed[MAX_SUPPORTED_MOTORS];	// Regulation measurement
+FAST_DATA_ZERO_INIT uint8_t			blkPidInitFlag;									// PID needs reset
+FAST_DATA_ZERO_INIT uint8_t			blkPidActiveFlag;								// PID is active only when Betalink MSP command received
 #ifdef BLK_TEST
-float 														motor_disarmed[MAX_SUPPORTED_MOTORS];
-uint32_t 													targetPidLooptime = 125;
+float 								motor_disarmed[MAX_SUPPORTED_MOTORS];
+uint32_t 							targetPidLooptime = 125;
 
 float motorConvertFromExternal(uint16_t externalValue)
 {
@@ -60,14 +60,14 @@ uint8_t getMotorCount(void)
 FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 	static float 		blkMotorPidUi1[MAX_SUPPORTED_MOTORS];
 	static float 		blkMotorPidE1[MAX_SUPPORTED_MOTORS];
-	float 					blkMotorPidU;
-	float 					blkMotorPidUi;
-	float 					blkMotorPidUp;
-	float 					blkMotorPidE;
+	float 				blkMotorPidU;
+	float 				blkMotorPidUi;
+	float 				blkMotorPidUp;
+	float 				blkMotorPidE;
 	#ifdef BLK_FILTER_ACTIVE
-	float 					blkAvg;
-	static uint16_t blkMotorFilterHistory[MAX_SUPPORTED_MOTORS][BLK_MOTOR_FILTER_SZ];
-	uint16_t 				blkMotorMedianFilterHistory[MAX_SUPPORTED_MOTORS][BLK_MOTOR_FILTER_SZ];
+	float 				blkAvg;
+	static uint16_t 	blkMotorFilterHistory[MAX_SUPPORTED_MOTORS][BLK_MOTOR_FILTER_SZ];
+	uint16_t 			blkMotorMedianFilterHistory[MAX_SUPPORTED_MOTORS][BLK_MOTOR_FILTER_SZ];
 	#endif
 	
 	// Skip if PID not active
@@ -102,9 +102,9 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 		blkMotorFilterHistory[i][0] = getDshotTelemetry(i);
 		#else
 		#ifdef BLK_FILTER_LP
-		blkMotorFilterHistory[i][0] = (uint16_t)lrint( (float)filteredMotorErpm[i] * 100.0 * 2.0 / motorConfig()->motorPoleCount );
+		blkMotorFilterHistory[i][0] = (uint16_t)lrint( getMotorFrequencyHz( i ) * SECONDS_PER_MINUTE );
 		#else
-		blkMotorFilterHistory[i][0] = (uint16_t)lrint( (float)getDshotTelemetry(i) * 100.0 * 2.0 / motorConfig()->motorPoleCount );
+		blkMotorFilterHistory[i][0] = (uint16_t)lrint( getDshotRpm( i ) );
 		#endif
 		#endif
 		
@@ -115,13 +115,13 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 		// Median filtering: bubble sorting
 		#ifdef BLK_FILTER_MED
 		for (unsigned k = 0; k < BLK_MOTOR_FILTER_SZ - 1; k++) {
-    	for (unsigned l = 0; l < BLK_MOTOR_FILTER_SZ - k - 1; l++) {
-        if (blkMotorMedianFilterHistory[i][l] > blkMotorMedianFilterHistory[i][l + 1]) {
-					unsigned temp = blkMotorMedianFilterHistory[i][l];
-					blkMotorMedianFilterHistory[i][l] = blkMotorMedianFilterHistory[i][l + 1];
-					blkMotorMedianFilterHistory[i][l + 1] = temp;
-        }
-    	}
+			for (unsigned l = 0; l < BLK_MOTOR_FILTER_SZ - k - 1; l++) {
+				if (blkMotorMedianFilterHistory[i][l] > blkMotorMedianFilterHistory[i][l + 1]) {
+							unsigned temp = blkMotorMedianFilterHistory[i][l];
+							blkMotorMedianFilterHistory[i][l] = blkMotorMedianFilterHistory[i][l + 1];
+							blkMotorMedianFilterHistory[i][l + 1] = temp;
+				}
+			}
 		}
 		#endif
 		
@@ -138,7 +138,7 @@ FAST_CODE_NOINLINE void taskMotorPidLoop( void )	{
 	}
 	
 	// Calculate PI control law
-  // U(z)=P.E(z)+I.Ts/2(z+1)/(z-1)
+  	// U(z)=P.E(z)+I.Ts/2(z+1)/(z-1)
 	
 	for (unsigned i = 0; i < getMotorCount(); i++) {
 		

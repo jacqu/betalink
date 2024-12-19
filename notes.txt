@@ -16,8 +16,8 @@ Install Betaflight source code
 =================================
 
 Into the folder where you installed "betalink", download Betaflight current release source code:
-git clone --depth 1 --branch 4.3.1 https://github.com/betaflight/betaflight.git
-(Replace "4.3.1" with the current stable Betaflight 4.3 release number)
+git clone --depth 1 --branch 4.5.1 https://github.com/betaflight/betaflight.git
+(Replace "4.5.1" with the current stable Betaflight release number)
 Go into the "betaflight" folder
 Run "make arm_sdk_install"
 
@@ -26,7 +26,7 @@ Modify Betaflight firmware
 
 === Add betalink opcode ===
 
-In src/main/msp/msp.c add at line 155:
+In src/main/msp/msp.c add at line 158:
 extern FAST_DATA_ZERO_INIT uint16_t		blkMotorSpeedRef[MAX_SUPPORTED_MOTORS];
 extern FAST_DATA_ZERO_INIT uint16_t		blkMotorFilteredSpeed[MAX_SUPPORTED_MOTORS];
 extern FAST_DATA_ZERO_INIT uint8_t		blkPidActiveFlag;
@@ -36,96 +36,92 @@ near line 2202, in function mspFcProcessOutCommandWithArg, just after "switch (c
 
 		case MSP_BETALINK:
 		
-				// Activate motor velocity control
-				blkPidActiveFlag = 1;
+		// Activate motor velocity control
+		blkPidActiveFlag = 1;
 		
-				// Set motor reference velocity
-				for (unsigned i = 0; i < getMotorCount(); i++) {
-					if (sbufBytesRemaining(src) >= (int)sizeof(uint16_t)) {
-						blkMotorSpeedRef[i] = sbufReadU16(src);
-					}
-				}
+		// Set motor reference velocity
+		for (unsigned i = 0; i < getMotorCount(); i++) {
+			if (sbufBytesRemaining(src) >= (int)sizeof(uint16_t)) {
+				blkMotorSpeedRef[i] = sbufReadU16(src);
+			}
+		}
 				
-				// Send timestamp in us
-	      sbufWriteU32(dst, micros());
+		// Send timestamp in us
+	    sbufWriteU32(dst, micros());
 	      
-				// Send battery data
-				sbufWriteU16(dst, getBatteryVoltage()); // in 0.01V steps
-				sbufWriteU16(dst, (int16_t)constrain(getAmperage(), -0x8000, 0x7FFF)); // send current in 0.01 A steps, range is -320A to 320A
-				sbufWriteU16(dst, (uint16_t)constrain(getMAhDrawn(), 0, 0xFFFF)); // milliamp hours drawn from battery
+		// Send battery data
+		sbufWriteU16(dst, getBatteryVoltage()); // in 0.01V steps
+		sbufWriteU16(dst, (int16_t)constrain(getAmperage(), -0x8000, 0x7FFF)); // send current in 0.01 A steps, range is -320A to 320A
+		sbufWriteU16(dst, (uint16_t)constrain(getMAhDrawn(), 0, 0xFFFF)); // milliamp hours drawn from battery
 	
-				// Send IMU raw data
-				{
-					#if defined(USE_ACC)
-					// Hack scale due to choice of units for sensor data in multiwii
-	
-					uint8_t scale;
-					if (acc.dev.acc_1G > 512 * 4) {
-							scale = 8;
-					} else if (acc.dev.acc_1G > 512 * 2) {
-							scale = 4;
-					} else if (acc.dev.acc_1G >= 512) {
-							scale = 2;
-					} else {
-							scale = 1;
-					}
-				#endif
-	
-					for (int i = 0; i < 3; i++) {
-						#if defined(USE_ACC)
-						sbufWriteU16(dst, lrintf(acc.accADC[i] / scale));
-						#else
-						sbufWriteU16(dst, 0);
-						#endif
-					}
-					for (int i = 0; i < 3; i++) {
-						sbufWriteU16(dst, gyroRateDps(i));
-					}
-					for (int i = 0; i < 3; i++) {
-						#if defined(USE_MAG)
-						sbufWriteU16(dst, lrintf(mag.magADC[i]));
-						#else
-						sbufWriteU16(dst, 0);
-						#endif
-					}
-				}
-				
-				// Send Euler angles
-				sbufWriteU16(dst, attitude.values.roll);
-				sbufWriteU16(dst, attitude.values.pitch);
-				sbufWriteU16(dst, attitude.values.yaw);
-				
-				// Send ESC telemetry
-				for (unsigned i = 0; i < getMotorCount(); i++) {
-					int 			rpm = 0;
-					uint16_t 	invalidPct = 10000; // 100.00%
-		
-					#ifdef USE_DSHOT_TELEMETRY
-					if (motorConfig()->dev.useDshotTelemetry) {
-						rpm = (int)blkMotorFilteredSpeed[i];
-						#ifdef USE_DSHOT_TELEMETRY_STATS
-						if (isDshotMotorTelemetryActive(i)) {
-							invalidPct = getDshotTelemetryMotorInvalidPercent(i);
-						}
-						#endif
-					}
-					#endif
-					sbufWriteU32(dst, rpm);
-					sbufWriteU16(dst, invalidPct);
-				}
-	
-				break;
+		// Send IMU raw data
+		{
+			#if defined(USE_ACC)
+			// Hack scale due to choice of units for sensor data in multiwii
 
-In src/main/flight/rpm_filter.c remove "static" at line 70:
-FAST_DATA_ZERO_INIT        float   filteredMotorErpm[MAX_SUPPORTED_MOTORS];
+			uint8_t scale;
+			if (acc.dev.acc_1G > 512 * 4) {
+					scale = 8;
+			} else if (acc.dev.acc_1G > 512 * 2) {
+					scale = 4;
+			} else if (acc.dev.acc_1G >= 512) {
+					scale = 2;
+			} else {
+					scale = 1;
+			}
+			#endif
+
+			for (int i = 0; i < 3; i++) {
+				#if defined(USE_ACC)
+				sbufWriteU16(dst, lrintf(acc.accADC[i] / scale));
+				#else
+				sbufWriteU16(dst, 0);
+				#endif
+			}
+			for (int i = 0; i < 3; i++) {
+				sbufWriteU16(dst, gyroRateDps(i));
+			}
+			for (int i = 0; i < 3; i++) {
+				#if defined(USE_MAG)
+				sbufWriteU16(dst, lrintf(mag.magADC[i]));
+				#else
+				sbufWriteU16(dst, 0);
+				#endif
+			}
+		}
+				
+		// Send Euler angles
+		sbufWriteU16(dst, attitude.values.roll);
+		sbufWriteU16(dst, attitude.values.pitch);
+		sbufWriteU16(dst, attitude.values.yaw);
+		
+		// Send ESC telemetry
+		for (unsigned i = 0; i < getMotorCount(); i++) {
+			int 		rpm = 0;
+			uint16_t 	invalidPct = 10000; // 100.00%
+
+			#ifdef USE_DSHOT_TELEMETRY
+			if (motorConfig()->dev.useDshotTelemetry) {
+				rpm = (int)blkMotorFilteredSpeed[i];
+				#ifdef USE_DSHOT_TELEMETRY_STATS
+				if (isDshotMotorTelemetryActive(i)) {
+					invalidPct = getDshotTelemetryMotorInvalidPercent(i);
+				}
+				#endif
+			}
+			#endif
+			sbufWriteU32(dst, rpm);
+			sbufWriteU16(dst, invalidPct);
+		}
+		break;
 
 In src/main/msp/msp_protocol.h add a new opcode at the end of the file:
 #define MSP_BETALINK             207    //in & out message    Betalink transaction opcode
 
 === Add watchdog code ===
 
-In src/main/msp/msp_serial.c line 498, insert following code before
-"mspPostProcessFnPtr mspPostProcessFn = NULL;":
+In src/main/msp/msp_serial.c line 516, insert following code before
+"mspPostProcessFnPtr mspPostProcessFn = NULL;" in function mspSerialProcess:
 
 				// Watchdog: stop motor if too long serial inactivity
 				if ( 	millis()-mspPort->lastActivityMs > 
@@ -137,28 +133,27 @@ In src/main/msp/msp_serial.c line 498, insert following code before
 					blkPidActiveFlag = 0;
 				}
 				
-Line 42:
+Line 44:
 #include "flight/mixer.h"
 
 #include "pg/motor.h"
 
 #include "rx/rx.h"
 
-Line 49:
+Line 51:
 extern FAST_DATA_ZERO_INIT uint8_t	blkPidInitFlag;
 extern FAST_DATA_ZERO_INIT uint8_t	blkPidActiveFlag;
 
 In src/main/msp/msp_serial.h line 31, insert following code:
 #define BLK_SERIAL_WATCHDOG 100			// Number of serial task polling periods
 
-
 === Add motor speed regulation on FC ===
 
-In src/main/fc/core.c line 1270, before function "taskMainPidLoop" insert:
+In src/main/fc/core.c line 1279, before function "taskMainPidLoop" insert:
 // Betalink velocity regulation
 #include "../../../../betalink/taskMotorPidLoop.c"
 
-In src/main/fc/core.c, near line 1290, in function "taskMainPidLoop", insert
+In src/main/fc/core.c, near line 1297, in function "taskMainPidLoop", insert
 taskMotorPidLoop();
 after
 subTaskRcCommand(currentTimeUs);
